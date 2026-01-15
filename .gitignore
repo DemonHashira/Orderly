@@ -1,0 +1,37 @@
+# OS / Editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+*.log
+
+# Laravel (services/api)
+services/api/.env
+services/api/.env.*.local
+services/api/vendor/
+services/api/storage/*.key
+services/api/storage/app/public/
+services/api/storage/framework/cache/*
+services/api/storage/framework/sessions/*
+services/api/storage/framework/views/*
+services/api/storage/logs/*
+services/api/bootstrap/cache/*
+services/api/public/storage
+
+# PHPUnit / coverage
+services/api/.phpunit.result.cache
+services/api/coverage/
+
+# Node / Vue (services/web)
+services/web/node_modules/
+services/web/dist/
+services/web/.env
+services/web/.env.*.local
+
+# Vite
+services/web/.vite/
+
+# Misc
+.env
