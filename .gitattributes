@@ -1,0 +1,27 @@
+# Normalize line endings
+* text=auto eol=lf
+
+# Treat these as text
+*.php   text
+*.js    text
+*.ts    text
+*.vue   text
+*.json  text
+*.css   text
+*.scss  text
+*.md    text
+*.yml   text
+*.yaml  text
+*.env   text
+*.sh    text
+
+# Treat these as binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.pdf   binary
+*.zip   binary
+*.gz    binary
+*.woff  binary
+*.woff2 binary
