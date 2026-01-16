@@ -21,6 +21,12 @@ jobs:
 
       - run: composer install --no-interaction --prefer-dist
 
+      - name: Copy .env.example to .env
+        run: cp .env.example .env
+
+      - name: Generate application key
+        run: php artisan key:generate
+
       - run: ./vendor/bin/pint --test
       - run: php artisan test
 
@@ -35,7 +41,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version-file: '../../.nvmrc'
+          node-version-file: '. nvmrc'
           cache: 'npm'
           cache-dependency-path: services/web/package-lock.json
 

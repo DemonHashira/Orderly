@@ -1,0 +1,7 @@
+{
+  "name": "orderly",
+  "private": true,
+  "workspaces": [
+    "services/*"
+  ]
+}
