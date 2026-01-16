@@ -26,6 +26,7 @@ services/api/coverage/
 
 # Node / Vue (services/web)
 services/web/node_modules/
+services/web/node_modules/**/.cache/
 services/web/dist/
 services/web/.env
 services/web/.env.*.local
