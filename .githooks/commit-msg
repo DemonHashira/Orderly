@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+MSG_FILE="$1"
+MSG="$(sed -n '1p' "$MSG_FILE")"
+
+# Conventional Commits regex
+REGEX='^(feat|fix|chore|docs|test|refactor|style|ci)(\([a-zA-Z0-9_-]+\))?: .{1,72}$'
+
+if [[ ! "$MSG" =~ $REGEX ]]; then
+  echo "❌ Invalid commit message."
+  echo
+  echo "Expected format:"
+  echo "  type(scope?): short description"
+  echo
+  echo "Examples:"
+  echo "  feat(api): add order creation endpoint"
+  echo "  fix(web): correct cart total calculation"
+  echo "  chore: update dependencies"
+  echo
+  exit 1
+fi

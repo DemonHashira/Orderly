@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+API_DIR="$ROOT/services/api"
+WEB_DIR="$ROOT/services/web"
+
+echo "[pre-push] Running tests before push..."
+
+# API tests
+if [[ -d "$API_DIR" ]]; then
+  echo "[pre-push] API tests..."
+  if [[ ! -f "$API_DIR/artisan" ]]; then
+    echo "[pre-push] ❌ Laravel API not initialized"
+    exit 1
+  fi
+
+  (
+    cd "$API_DIR"
+    php artisan test
+  ) || {
+    echo "[pre-push] ❌ API tests failed. Push aborted."
+    exit 1
+  }
+fi
+
+# Web tests
+if [[ -d "$WEB_DIR" ]]; then
+  echo "[pre-push] Web tests..."
+  if [[ ! -d "$WEB_DIR/node_modules" ]]; then
+    echo "[pre-push] ❌ node_modules missing. Run:"
+    echo "  cd services/web && npm install"
+    exit 1
+  fi
+
+  (
+    cd "$WEB_DIR"
+    npm run test
+  ) || {
+    echo "[pre-push] ❌ Web tests failed. Push aborted."
+    exit 1
+  }
+fi
+
+echo "[pre-push] ✅ All tests passed. Pushing..."
