@@ -20,17 +20,14 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 'lts/*'
+          node-version: '22'
 
-      - name: Install semantic-release plugins
-        run: npm install --no-audit --legacy-peer-deps @semantic-release/commit-analyzer @semantic-release/release-notes-generator @semantic-release/github
+      - name: Install dependencies
+        run: |
+          npm install -g semantic-release@22
+          npm install --save-dev @semantic-release/commit-analyzer @semantic-release/release-notes-generator @semantic-release/github
 
-      - uses: cycjimmy/semantic-release-action@v4
-        with:
-          semantic_version:  22
-          extra_plugins:  |
-            @semantic-release/commit-analyzer
-            @semantic-release/release-notes-generator
-            @semantic-release/github
+      - name: Release
+        run: npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
