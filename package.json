@@ -1,9 +1,10 @@
 {
   "name": "orderly",
   "private": true,
-  "workspaces": [
-    "services/*"
-  ],
+  "workspaces": ["services/*"],
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "^4.24.0"
+  },
   "devDependencies": {
     "conventional-changelog-conventionalcommits": "^9.1.0"
   }
