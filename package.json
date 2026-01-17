@@ -3,5 +3,8 @@
   "private": true,
   "workspaces": [
     "services/*"
-  ]
+  ],
+  "devDependencies": {
+    "conventional-changelog-conventionalcommits": "^9.1.0"
+  }
 }
