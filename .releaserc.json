@@ -7,7 +7,6 @@
         "preset": "conventionalcommits",
         "releaseRules": [
           { "type": "release", "release": "minor" },
-
           { "type": "feat", "release": false },
           { "type": "fix", "release": false },
           { "type": "chore", "release": false },
