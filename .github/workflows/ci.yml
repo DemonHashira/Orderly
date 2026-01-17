@@ -33,17 +33,19 @@ jobs:
   web:
     runs-on: ubuntu-latest
     env:
-      ROLLUP_SKIP_NODEJS_NATIVE: 1
+      ROLLUP_NO_NATIVE: 1
+  
     steps:
       - uses: actions/checkout@v4
+  
       - uses: actions/setup-node@v4
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
           cache-dependency-path: package-lock.json
-
-      - run: npm ci --include=optional
-
+  
+      - run: npm ci
+  
       - run: npm run lint --workspace services/web
       - run: npm run format:check --workspace services/web
       - run: npm run test --workspace services/web
