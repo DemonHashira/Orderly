@@ -32,21 +32,16 @@ jobs:
 
   web:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: services/web
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
-          cache-dependency-path: services/web/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - run: npm ci
 
-      - run: npm run lint
-      - run: npm run format:check
-      - run: npm run test
+      - run: npm run lint --workspace services/web
+      - run: npm run format:check --workspace services/web
+      - run: npm run test --workspace services/web
