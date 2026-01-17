@@ -34,6 +34,7 @@ gum style \
 # Menu
 choice="$(gum choose \
   --header "🚀 Orderly – Development Menu" \
+  "Install ALL (API + Web)" \
   "Start ALL (API + Web)" \
   "Start API (Laravel)" \
   "Start Web (Vue)" \
@@ -43,6 +44,23 @@ choice="$(gum choose \
 
 # Actions
 case "$choice" in
+  "Install ALL (API + Web)")
+    gum style --bold "Installing dependencies..."
+    
+    gum style --foreground 212 "📦 Installing root dependencies..."
+    npm install
+    
+    gum style --foreground 212 "📦 Installing API dependencies (Composer)..."
+    cd "$API_DIR"
+    composer install
+    
+    gum style --foreground 212 "📦 Installing Web dependencies (npm)..."
+    cd "$WEB_DIR"
+    npm install
+    
+    gum style --foreground 46 --bold "✅ Installation complete!"
+    ;;
+
   "Start ALL (API + Web)")
     gum style --bold "Starting API + Web..."
 
