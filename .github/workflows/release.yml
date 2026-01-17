@@ -17,10 +17,18 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+
+      - name: Install semantic-release plugins
+        run: npm install --no-audit --legacy-peer-deps @semantic-release/commit-analyzer @semantic-release/release-notes-generator @semantic-release/github
+
       - uses: cycjimmy/semantic-release-action@v4
         with:
-          semantic_version: 22
-          extra_plugins: |
+          semantic_version:  22
+          extra_plugins:  |
             @semantic-release/commit-analyzer
             @semantic-release/release-notes-generator
             @semantic-release/github
