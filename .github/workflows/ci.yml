@@ -32,6 +32,8 @@ jobs:
 
   web:
     runs-on: ubuntu-latest
+    env:
+      ROLLUP_SKIP_NODEJS_NATIVE: 1
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
