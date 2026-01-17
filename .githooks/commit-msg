@@ -5,7 +5,7 @@ MSG_FILE="$1"
 MSG="$(sed -n '1p' "$MSG_FILE")"
 
 # Conventional Commits regex
-REGEX='^(feat|fix|chore|docs|test|refactor|style|ci)(\([a-zA-Z0-9_-]+\))?: .{1,72}$'
+REGEX='^(feat|fix|chore|docs|test|refactor|style|add|ci)(\([a-zA-Z0-9_-]+\))?: .{1,72}$'
 
 if [[ ! "$MSG" =~ $REGEX ]]; then
   echo "❌ Invalid commit message."
