@@ -3,8 +3,30 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class InventoryStock extends Model
 {
-    //
+    protected $fillable = [
+        'organization_id',
+        'product_id',
+        'qty_on_hand',
+        'qty_reserved',
+        'reorder_threshold',
+    ];
+
+    public function organization(): BelongsTo
+    {
+        return $this->belongsTo(Organization::class);
+    }
+
+    public function product(): BelongsTo
+    {
+        return $this->belongsTo(Product::class);
+    }
+
+    public function movements()
+    {
+        return $this->hasMany(InventoryMovement::class, 'product_id', 'product_id');
+    }
 }
