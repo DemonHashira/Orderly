@@ -14,6 +14,11 @@ class ReturnItem extends Model
         'restockable',
     ];
 
+    protected $casts = [
+        'quantity' => 'integer',
+        'restockable' => 'boolean',
+    ];
+
     public function returnOrder(): BelongsTo
     {
         return $this->belongsTo(ReturnOrder::class, 'return_id');

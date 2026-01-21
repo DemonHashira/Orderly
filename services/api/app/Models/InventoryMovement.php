@@ -18,6 +18,10 @@ class InventoryMovement extends Model
         'reference_id',
     ];
 
+    protected $casts = [
+        'qty_delta' => 'integer',
+    ];
+
     public function organization(): BelongsTo
     {
         return $this->belongsTo(Organization::class);

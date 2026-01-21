@@ -15,6 +15,12 @@ class InventoryStock extends Model
         'reorder_threshold',
     ];
 
+    protected $casts = [
+        'qty_on_hand' => 'integer',
+        'qty_reserved' => 'integer',
+        'reorder_threshold' => 'integer',
+    ];
+
     public function organization(): BelongsTo
     {
         return $this->belongsTo(Organization::class);

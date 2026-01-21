@@ -18,6 +18,10 @@ class Order extends Model
         'internal_notes',
     ];
 
+    protected $casts = [
+        'total_amount' => 'decimal:2',
+    ];
+
     public function organization(): BelongsTo
     {
         return $this->belongsTo(Organization::class);

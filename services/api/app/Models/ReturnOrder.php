@@ -7,12 +7,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ReturnOrder extends Model
 {
-    protected $table = 'returns';
-
     protected $fillable = [
         'order_id',
         'reason',
         'returned_at',
+    ];
+
+    protected $casts = [
+        'returned_at' => 'datetime',
     ];
 
     public function order(): BelongsTo

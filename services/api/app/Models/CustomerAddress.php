@@ -18,6 +18,10 @@ class CustomerAddress extends Model
         'is_default',
     ];
 
+    protected $casts = [
+        'is_default' => 'boolean',
+    ];
+
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);

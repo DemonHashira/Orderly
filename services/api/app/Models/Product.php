@@ -16,6 +16,11 @@ class Product extends Model
         'is_active',
     ];
 
+    protected $casts = [
+        'sale_price' => 'decimal:2',
+        'is_active' => 'boolean',
+    ];
+
     public function organization(): BelongsTo
     {
         return $this->belongsTo(Organization::class);
