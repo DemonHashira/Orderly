@@ -2,9 +2,12 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Order extends Model
 {
@@ -45,22 +48,22 @@ class Order extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    public function items()
+    public function items(): Builder|HasMany
     {
         return $this->hasMany(OrderItem::class);
     }
 
-    public function statusHistory()
+    public function statusHistory(): Builder|HasMany
     {
         return $this->hasMany(OrderStatusHistory::class);
     }
 
-    public function shipment()
+    public function shipment(): HasOne|Builder
     {
         return $this->hasOne(Shipment::class);
     }
 
-    public function return()
+    public function return(): HasOne|Builder
     {
         return $this->hasOne(ReturnOrder::class);
     }

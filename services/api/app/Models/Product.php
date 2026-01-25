@@ -2,9 +2,12 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Product extends Model
 {
@@ -29,22 +32,22 @@ class Product extends Model
         return $this->belongsTo(Organization::class);
     }
 
-    public function inventoryStock()
+    public function inventoryStock(): HasOne|Builder
     {
         return $this->hasOne(InventoryStock::class);
     }
 
-    public function orderItems()
+    public function orderItems(): Builder|HasMany
     {
         return $this->hasMany(OrderItem::class);
     }
 
-    public function inventoryMovements()
+    public function inventoryMovements(): Builder|HasMany
     {
         return $this->hasMany(InventoryMovement::class);
     }
 
-    public function returnItems()
+    public function returnItems(): Builder|HasMany
     {
         return $this->hasMany(ReturnItem::class);
     }
