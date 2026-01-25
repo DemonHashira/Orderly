@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Models\Customer;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Organization;
 use App\Models\SalesChannel;
 use App\Models\User;
@@ -23,7 +24,7 @@ class OrderFactory extends Factory
             'sales_channel_id' => SalesChannel::query()->value('id') ?? SalesChannel::factory(),
             'created_by' => User::query()->value('id') ?? User::factory(),
             'reference' => 'ORD-'.strtoupper(fake()->bothify('??####')),
-            'total_amount' => 0, // Will be calculated from items
+            'total_amount' => 0,
             'current_status' => fake()->randomElement($statuses),
             'internal_notes' => fake()->optional(0.4)->sentence(),
         ];
@@ -69,5 +70,13 @@ class OrderFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'current_status' => 'cancelled',
         ]);
+    }
+
+    public function withItems(int $count = 3): static
+    {
+        return $this->has(
+            OrderItem::factory()->count($count),
+            'items'
+        );
     }
 }

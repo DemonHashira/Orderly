@@ -21,4 +21,25 @@ class ProductFactory extends Factory
             'is_active' => true,
         ];
     }
+
+    public function inactive(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'is_active' => false,
+        ]);
+    }
+
+    public function expensive(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'sale_price' => fake()->randomFloat(2, 100, 500),
+        ]);
+    }
+
+    public function cheap(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'sale_price' => fake()->randomFloat(2, 1, 10),
+        ]);
+    }
 }
