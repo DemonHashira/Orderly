@@ -20,6 +20,8 @@ services/api/storage/framework/views/*
 services/api/storage/logs/*
 services/api/bootstrap/cache/*
 services/api/public/storage
+_ide_helper.php
+_ide_helper_models.php
 
 # PHPUnit / coverage
 services/api/.phpunit.result.cache
