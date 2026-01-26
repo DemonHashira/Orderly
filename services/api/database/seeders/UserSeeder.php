@@ -32,7 +32,7 @@ class UserSeeder extends Seeder
             [
                 'name' => 'Aleksandar Ivanov',
                 'email' => 'aivanov@otakucorner.test',
-                'role' => 'Inventory Controller',
+                'role' => 'Inventory Manager',
             ],
         ];
 
