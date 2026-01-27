@@ -115,7 +115,7 @@ class RoleSeeder extends Seeder
             'returns.view',
         ];
 
-        $inventoryController = [
+        $inventoryManager = [
             'inventory.view',
             'inventory.movement.create',
             'inventory.report.view',
@@ -133,6 +133,6 @@ class RoleSeeder extends Seeder
         Role::findByName('Administrator', $guard)->syncPermissions($all);
         Role::findByName('Order Manager', $guard)->syncPermissions($orderManager);
         Role::findByName('Warehouse Manager', $guard)->syncPermissions($warehouseManager);
-        Role::findByName('Inventory Manager', $guard)->syncPermissions($inventoryController);
+        Role::findByName('Inventory Manager', $guard)->syncPermissions($inventoryManager);
     }
 }
