@@ -17,7 +17,7 @@ class UserSeeder extends Seeder
             [
                 'name' => 'Viktor Logodazhki',
                 'email' => 'vlogodazhki@otakucorner.test',
-                'role' => 'Administrator',
+                'role' => 'Owner',
             ],
             [
                 'name' => 'Kiril Hadzhiyski',
@@ -27,7 +27,7 @@ class UserSeeder extends Seeder
             [
                 'name' => 'Nikolay Pugyov',
                 'email' => 'npugyov@otakucorner.test',
-                'role' => 'Warehouse Manager',
+                'role' => 'Logistics Manager',
             ],
             [
                 'name' => 'Aleksandar Ivanov',

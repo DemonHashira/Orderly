@@ -19,9 +19,9 @@ class RoleSeeder extends Seeder
 
         // Roles
         $roles = [
-            'Administrator',
+            'Owner',
             'Order Manager',
-            'Warehouse Manager',
+            'Logistics Manager',
             'Inventory Manager',
         ];
 
@@ -130,9 +130,9 @@ class RoleSeeder extends Seeder
             'reports.view',
         ];
 
-        Role::findByName('Administrator', $guard)->syncPermissions($all);
+        Role::findByName('Owner', $guard)->syncPermissions($all);
         Role::findByName('Order Manager', $guard)->syncPermissions($orderManager);
-        Role::findByName('Warehouse Manager', $guard)->syncPermissions($warehouseManager);
+        Role::findByName('Logistics Manager', $guard)->syncPermissions($warehouseManager);
         Role::findByName('Inventory Manager', $guard)->syncPermissions($inventoryManager);
     }
 }

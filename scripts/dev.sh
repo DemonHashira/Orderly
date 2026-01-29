@@ -11,8 +11,8 @@ has_cmd() { command -v "$1" >/dev/null 2>&1; }
 
 require_cmd() {
   if ! has_cmd "$1"; then
-    echo "❌ $1 is not installed."
-    echo "👉 Install with: $2"
+    echo "$1 is not installed."
+    echo "Install with: $2"
     exit 1
   fi
 }
@@ -21,6 +21,7 @@ require_cmd() {
 require_cmd gum "brew install gum"
 require_cmd php "brew install php"
 require_cmd npm "brew install node"
+require_cmd composer "brew install composer"
 
 # Header
 gum style \
@@ -33,7 +34,7 @@ gum style \
 
 # Menu
 choice="$(gum choose \
-  --header "🚀 Orderly – Development Menu" \
+  --header "Orderly – Development Menu" \
   "Install ALL (API + Web)" \
   "Start ALL (API + Web)" \
   "Start API (Laravel)" \
@@ -46,19 +47,23 @@ choice="$(gum choose \
 case "$choice" in
   "Install ALL (API + Web)")
     gum style --bold "Installing dependencies..."
-    
-    gum style --foreground 212 "📦 Installing root dependencies..."
+
+    gum style --foreground 212 "Configuring git hooks..."
+    cd "$ROOT_DIR"
+    git config core.hooksPath .githooks
+
+    gum style --foreground 212 "Installing root dependencies..."
     npm install
-    
-    gum style --foreground 212 "📦 Installing API dependencies (Composer)..."
+
+    gum style --foreground 212 "Installing API dependencies (Composer)..."
     cd "$API_DIR"
     composer install
-    
-    gum style --foreground 212 "📦 Installing Web dependencies (npm)..."
+
+    gum style --foreground 212 "Installing Web dependencies (npm)..."
     cd "$WEB_DIR"
     npm install
-    
-    gum style --foreground 46 --bold "✅ Installation complete!"
+
+    gum style --foreground 46 --bold "Installation complete!"
     ;;
 
   "Start ALL (API + Web)")

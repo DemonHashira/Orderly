@@ -31,7 +31,7 @@ if [[ ${#api_files[@]} -gt 0 ]]; then
     cd "$API_DIR"
     ./vendor/bin/pint --test
   ) || {
-    echo "[pre-commit] ❌ Pint failed."
+    echo "[pre-commit] Pint failed."
     echo "Fix with:"
     echo "  cd services/api && ./vendor/bin/pint"
     exit 1
@@ -53,11 +53,11 @@ if [[ ${#web_files[@]} -gt 0 ]]; then
     npm run lint
     npm run format:check
   ) || {
-    echo "[pre-commit] ❌ Web formatting failed."
+    echo "[pre-commit] Web formatting failed."
     echo "Fix with:"
     echo "  cd services/web && npm run format"
     exit 1
   }
 fi
 
-echo "[pre-commit] ✅ All checks passed"
+echo "[pre-commit] All checks passed"
