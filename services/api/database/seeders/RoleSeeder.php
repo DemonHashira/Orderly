@@ -14,8 +14,7 @@ class RoleSeeder extends Seeder
         // Clear cached permissions
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        // Guard for API authentication
-        $guard = 'sanctum';
+        $guard = config('auth.defaults.guard', 'web');
 
         // Roles
         $roles = [
@@ -74,8 +73,13 @@ class RoleSeeder extends Seeder
         }
 
         foreach ($permissions as $permissionName) {
-            Permission::findOrCreate($permissionName, $guard);
+            Permission::query()->firstOrCreate([
+                'name' => $permissionName,
+                'guard_name' => $guard,
+            ]);
         }
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         // Permission sets per role
         $all = $permissions;

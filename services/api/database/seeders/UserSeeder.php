@@ -11,27 +11,27 @@ class UserSeeder extends Seeder
 {
     public function run(): void
     {
-        $org = Organization::query()->where('slug', 'otaku-corner')->firstOrFail();
+        $org = Organization::query()->where('slug', 'otaku-store')->firstOrFail();
 
         $users = [
             [
                 'name' => 'Viktor Logodazhki',
-                'email' => 'vlogodazhki@otakucorner.test',
+                'email' => 'vlogodazhki@otakustore.test',
                 'role' => 'Owner',
             ],
             [
                 'name' => 'Kiril Hadzhiyski',
-                'email' => 'khadzhiyski@otakucorner.test',
+                'email' => 'khadzhiyski@otakustore.test',
                 'role' => 'Order Manager',
             ],
             [
                 'name' => 'Nikolay Pugyov',
-                'email' => 'npugyov@otakucorner.test',
+                'email' => 'npugyov@otakustore.test',
                 'role' => 'Logistics Manager',
             ],
             [
                 'name' => 'Aleksandar Ivanov',
-                'email' => 'aivanov@otakucorner.test',
+                'email' => 'aivanov@otakustore.test',
                 'role' => 'Inventory Manager',
             ],
         ];

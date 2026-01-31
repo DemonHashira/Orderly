@@ -13,11 +13,11 @@ class InventorySeeder extends Seeder
 {
     public function run(): void
     {
-        $org = Organization::query()->where('slug', 'otaku-corner')->firstOrFail();
+        $org = Organization::query()->where('slug', 'otaku-store')->firstOrFail();
 
         $inventoryUser = User::query()
             ->where('organization_id', $org->id)
-            ->role('Inventory Controller')
+            ->role('Inventory Manager')
             ->first()
             ?? User::query()->where('organization_id', $org->id)->first();
 

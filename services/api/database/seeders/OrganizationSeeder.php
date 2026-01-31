@@ -9,9 +9,12 @@ class OrganizationSeeder extends Seeder
 {
     public function run(): void
     {
-        Organization::create([
-            'name' => 'Demo Store',
-            'slug' => 'demo-store',
-        ]);
+        Organization::query()->updateOrCreate(
+            ['slug' => 'otaku-store'],
+            [
+                'name' => 'Otaku Store',
+                'slug' => 'otaku-store',
+            ],
+        );
     }
 }
