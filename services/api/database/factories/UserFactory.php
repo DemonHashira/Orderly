@@ -26,7 +26,9 @@ class UserFactory extends Factory
     {
         return [
             'organization_id' => Organization::query()->value('id'),
-            'name' => fake()->name(),
+            'first_name' => fake()->firstName(),
+            'middle_name' => fake()->optional(0.2)->firstName(),
+            'last_name' => fake()->lastName(),
             'email' => fake()->unique()->safeEmail(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
