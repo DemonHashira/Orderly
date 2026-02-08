@@ -18,12 +18,12 @@ return new class extends Migration
             $table->string('middle_name')->nullable();
             $table->string('last_name');
             $table->string('phone');
-            $table->string('email')->nullable();
+            $table->string('email');
             $table->text('notes')->nullable();
             $table->softDeletes();
             $table->timestamps();
             $table->index(['organization_id', 'phone']);
-            $table->index(['organization_id', 'email', 'deleted_at']);
+            $table->unique(['organization_id', 'email']);
         });
     }
 

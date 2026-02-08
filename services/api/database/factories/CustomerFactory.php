@@ -18,7 +18,7 @@ class CustomerFactory extends Factory
             'middle_name' => fake()->optional(0.2)->firstName(),
             'last_name' => fake()->lastName(),
             'phone' => fake()->numerify('+359#########'),
-            'email' => fake()->optional(0.8)->safeEmail(),
+            'email' => fake()->safeEmail(),
             'notes' => fake()->optional(0.3)->sentence(),
         ];
     }
