@@ -20,8 +20,10 @@ return new class extends Migration
             $table->string('phone');
             $table->string('email')->nullable();
             $table->text('notes')->nullable();
+            $table->softDeletes();
             $table->timestamps();
             $table->index(['organization_id', 'phone']);
+            $table->index(['organization_id', 'email', 'deleted_at']);
         });
     }
 
