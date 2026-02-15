@@ -30,6 +30,7 @@ class RoleSeeder extends Seeder
             'orders.view',
             'orders.create',
             'orders.update',
+            'orders.delete',
             'orders.status.confirm',
             'orders.status.ready_to_ship',
             'orders.status.cancel',
@@ -44,7 +45,9 @@ class RoleSeeder extends Seeder
 
             // Customers
             'customers.view',
-            'customers.manage',
+            'customers.create',
+            'customers.update',
+            'customers.delete',
 
             // Products
             'products.view',
@@ -93,7 +96,8 @@ class RoleSeeder extends Seeder
             'orders.status.cancel',
 
             'customers.view',
-            'customers.manage',
+            'customers.create',
+            'customers.update',
 
             'products.view',
 
@@ -105,8 +109,9 @@ class RoleSeeder extends Seeder
             'reports.view',
         ];
 
-        $warehouseManager = [
+        $logisticsManager = [
             'orders.view',
+            'customers.view',
 
             'shipments.view',
             'shipments.create',
@@ -117,6 +122,8 @@ class RoleSeeder extends Seeder
 
             'products.view',
             'returns.view',
+
+            'inventory.view',
         ];
 
         $inventoryManager = [
@@ -136,7 +143,7 @@ class RoleSeeder extends Seeder
 
         Role::findByName('Owner', $guard)->syncPermissions($all);
         Role::findByName('Order Manager', $guard)->syncPermissions($orderManager);
-        Role::findByName('Logistics Manager', $guard)->syncPermissions($warehouseManager);
+        Role::findByName('Logistics Manager', $guard)->syncPermissions($logisticsManager);
         Role::findByName('Inventory Manager', $guard)->syncPermissions($inventoryManager);
     }
 }
