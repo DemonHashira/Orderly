@@ -2,6 +2,9 @@
 
 use App\Domain\Inventory\Exceptions\InsufficientStock;
 use App\Domain\Orders\Exceptions\InvalidOrderTransition;
+use App\Domain\Returns\Exceptions\InvalidReturnItemQuantity;
+use App\Domain\Returns\Exceptions\ReturnItemNotInOrder;
+use App\Domain\Returns\Exceptions\ReturnQuantityExceeded;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -38,6 +41,39 @@ return Application::configure(basePath: dirname(__DIR__))
             return response()->json([
                 'message' => $exception->getMessage(),
                 'code' => 'insufficient_stock',
+            ], Response::HTTP_CONFLICT);
+        });
+
+        $exceptions->render(function (ReturnItemNotInOrder $exception, Request $request) {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            return response()->json([
+                'message' => $exception->getMessage(),
+                'code' => 'return_item_not_in_order',
+            ], Response::HTTP_CONFLICT);
+        });
+
+        $exceptions->render(function (ReturnQuantityExceeded $exception, Request $request) {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            return response()->json([
+                'message' => $exception->getMessage(),
+                'code' => 'return_quantity_exceeded',
+            ], Response::HTTP_CONFLICT);
+        });
+
+        $exceptions->render(function (InvalidReturnItemQuantity $exception, Request $request) {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            return response()->json([
+                'message' => $exception->getMessage(),
+                'code' => 'invalid_return_item_quantity',
             ], Response::HTTP_CONFLICT);
         });
     })->create();
