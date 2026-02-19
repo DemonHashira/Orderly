@@ -65,16 +65,16 @@ final readonly class ShipmentService
         return DB::transaction(function () use ($shipmentId, $actorUserId, $deliveredAt) {
             $shipment = Shipment::query()->with(['order'])->lockForUpdate()->findOrFail($shipmentId);
 
-            // Update delivery timestamp
-            $shipment->forceFill(['delivered_at' => $deliveredAt])->save();
-
             $order = $shipment->order()->lockForUpdate()->firstOrFail();
             $status = OrderStatus::from($order->current_status);
 
-            // Transition order to delivered if currently shipped
-            if ($status === OrderStatus::Shipped) {
-                $this->workflow->transition($order->id, OrderStatus::Delivered, $actorUserId);
+            if ($status !== OrderStatus::Shipped) {
+                throw InvalidOrderTransition::forStatus($status, 'mark shipment delivered');
             }
+
+            // Update delivery timestamp and transition order
+            $shipment->forceFill(['delivered_at' => $deliveredAt])->save();
+            $this->workflow->transition($order->id, OrderStatus::Delivered, $actorUserId);
 
             return $shipment->refresh();
         });
@@ -120,11 +120,12 @@ final readonly class ShipmentService
             $order = $shipment->order()->lockForUpdate()->firstOrFail();
             $status = OrderStatus::from($order->current_status);
 
-            // Transition order to target status if currently shipped
-            if ($status === OrderStatus::Shipped) {
-                $this->workflow->transition($order->id, $targetStatus, $actorUserId);
-                $order->refresh();
+            if ($status !== OrderStatus::Shipped) {
+                throw InvalidOrderTransition::forStatus($status, 'mark shipment outcome');
             }
+
+            $this->workflow->transition($order->id, $targetStatus, $actorUserId);
+            $order->refresh();
 
             // Create a return record
             $returnOrder = $this->returns->createReturnIfMissing(

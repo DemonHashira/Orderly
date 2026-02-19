@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\ShipmentController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
@@ -35,4 +36,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/orders/{order}/ready-to-ship', [OrderController::class, 'readyToShip']);
     Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel']);
     Route::delete('/orders/{order}', [OrderController::class, 'destroy']);
+
+    Route::get('/shipments', [ShipmentController::class, 'index']);
+    Route::get('/shipments/{shipment}', [ShipmentController::class, 'show']);
+    Route::post('/orders/{order}/shipments', [ShipmentController::class, 'store']);
+    Route::post('/shipments/{shipment}/delivered', [ShipmentController::class, 'markDelivered']);
+    Route::post('/shipments/{shipment}/returned', [ShipmentController::class, 'markReturned']);
+    Route::post('/shipments/{shipment}/unpaid', [ShipmentController::class, 'markUnpaid']);
 });
