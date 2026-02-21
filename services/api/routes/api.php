@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\ReturnController;
 use App\Http\Controllers\Api\ShipmentController;
 use Illuminate\Support\Facades\Route;
 
@@ -43,4 +44,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/shipments/{shipment}/delivered', [ShipmentController::class, 'markDelivered']);
     Route::post('/shipments/{shipment}/returned', [ShipmentController::class, 'markReturned']);
     Route::post('/shipments/{shipment}/unpaid', [ShipmentController::class, 'markUnpaid']);
+
+    Route::get('/returns', [ReturnController::class, 'index']);
+    Route::get('/returns/{return}', [ReturnController::class, 'show']);
+    Route::get('/orders/{order}/return', [ReturnController::class, 'showByOrder']);
+    Route::post('/returns/{return}/items', [ReturnController::class, 'addItem']);
+    Route::post('/returns/{return}/restock', [ReturnController::class, 'restock']);
 });
