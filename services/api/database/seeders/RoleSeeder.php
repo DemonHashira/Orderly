@@ -52,6 +52,8 @@ class RoleSeeder extends Seeder
             // Products
             'products.view',
             'products.manage',
+            'products.import',
+            'products.export',
 
             // Inventory
             'inventory.view',
@@ -62,6 +64,8 @@ class RoleSeeder extends Seeder
             // Returns
             'returns.view',
             'returns.create',
+            'returns.item.add',
+            'returns.restock',
 
             // Users
             'users.manage',
@@ -69,6 +73,10 @@ class RoleSeeder extends Seeder
 
             // Reporting
             'reports.view',
+            'dashboard.view',
+            'reports.orders.view',
+            'reports.inventory.view',
+            'reports.returns.view',
         ];
 
         foreach ($roles as $roleName) {
@@ -107,6 +115,9 @@ class RoleSeeder extends Seeder
 
             'returns.view',
             'reports.view',
+            'dashboard.view',
+            'reports.orders.view',
+            'reports.returns.view',
         ];
 
         $logisticsManager = [
@@ -122,6 +133,11 @@ class RoleSeeder extends Seeder
 
             'products.view',
             'returns.view',
+            'returns.item.add',
+            'reports.view',
+            'dashboard.view',
+            'reports.orders.view',
+            'reports.returns.view',
 
             'inventory.view',
         ];
@@ -133,12 +149,17 @@ class RoleSeeder extends Seeder
             'inventory.return_restock.approve',
 
             'products.view',
+            'products.import',
+            'products.export',
             'orders.view',
 
             'returns.view',
-            'returns.create',
+            'returns.restock',
 
             'reports.view',
+            'dashboard.view',
+            'reports.inventory.view',
+            'reports.returns.view',
         ];
 
         Role::findByName('Owner', $guard)->syncPermissions($all);
