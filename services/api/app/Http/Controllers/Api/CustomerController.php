@@ -73,7 +73,7 @@ final class CustomerController extends Controller
             ['organization_id' => (int) $request->user()->organization_id],
         ));
 
-        return (new CustomerResource($customer))
+        return new CustomerResource($customer)
             ->response()
             ->setStatusCode(Response::HTTP_CREATED);
     }

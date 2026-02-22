@@ -2,7 +2,9 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CustomerController;
+use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\ReturnController;
 use App\Http\Controllers\Api\ShipmentController;
 use Illuminate\Support\Facades\Route;
@@ -50,4 +52,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/orders/{order}/return', [ReturnController::class, 'showByOrder']);
     Route::post('/returns/{return}/items', [ReturnController::class, 'addItem']);
     Route::post('/returns/{return}/restock', [ReturnController::class, 'restock']);
+
+    Route::get('/reports/orders/summary', [ReportController::class, 'ordersSummary']);
+    Route::get('/reports/inventory/summary', [ReportController::class, 'inventorySummary']);
+    Route::get('/reports/returns/summary', [ReportController::class, 'returnsSummary']);
+    Route::get('/dashboard', [DashboardController::class, 'show']);
 });
