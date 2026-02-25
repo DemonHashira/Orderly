@@ -4,6 +4,8 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\ProductExportController;
+use App\Http\Controllers\Api\ProductImportController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\ReturnController;
 use App\Http\Controllers\Api\ShipmentController;
@@ -30,6 +32,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/customers', [CustomerController::class, 'store']);
     Route::put('/customers/{customer}', [CustomerController::class, 'update']);
     Route::delete('/customers/{customer}', [CustomerController::class, 'destroy']);
+    Route::post('/products/import', ProductImportController::class);
+    Route::get('/products/export', ProductExportController::class);
 
     Route::get('/orders', [OrderController::class, 'index']);
     Route::get('/orders/{order}', [OrderController::class, 'show']);
