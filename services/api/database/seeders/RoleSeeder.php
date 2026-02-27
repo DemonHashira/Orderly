@@ -149,6 +149,7 @@ class RoleSeeder extends Seeder
             'inventory.return_restock.approve',
 
             'products.view',
+            'products.manage',
             'products.import',
             'products.export',
             'orders.view',

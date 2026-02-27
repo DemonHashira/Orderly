@@ -4,10 +4,12 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ProductExportController;
 use App\Http\Controllers\Api\ProductImportController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\ReturnController;
+use App\Http\Controllers\Api\SalesChannelController;
 use App\Http\Controllers\Api\ShipmentController;
 use Illuminate\Support\Facades\Route;
 
@@ -15,7 +17,7 @@ Route::prefix('auth')->group(function () {
     Route::post('/login', [AuthController::class, 'login'])->middleware(['web', 'throttle:login']);
     Route::post('/token', [AuthController::class, 'tokenLogin'])->middleware('throttle:login');
 
-    Route::middleware(['web', 'auth:sanctum'])->group(function () {
+    Route::middleware(['web'])->group(function () {
         Route::get('/me', [AuthController::class, 'me']);
         Route::post('/logout', [AuthController::class, 'logout']);
     });
@@ -34,6 +36,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/customers/{customer}', [CustomerController::class, 'destroy']);
     Route::post('/products/import', ProductImportController::class);
     Route::get('/products/export', ProductExportController::class);
+    Route::get('/products', [ProductController::class, 'index']);
+    Route::get('/products/{product}', [ProductController::class, 'show']);
+    Route::post('/products', [ProductController::class, 'store']);
+    Route::patch('/products/{product}', [ProductController::class, 'update']);
+    Route::post('/products/{product}/archive', [ProductController::class, 'archive']);
+    Route::get('/sales-channels', [SalesChannelController::class, 'index']);
+    Route::get('/sales-channels/{salesChannel}', [SalesChannelController::class, 'show']);
 
     Route::get('/orders', [OrderController::class, 'index']);
     Route::get('/orders/{order}', [OrderController::class, 'show']);

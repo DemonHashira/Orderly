@@ -51,6 +51,14 @@ final class AuthController extends Controller
     {
         $user = $request->user();
 
+        if (! $user) {
+            return response()->json([
+                'user' => null,
+                'roles' => [],
+                'permissions' => [],
+            ]);
+        }
+
         return response()->json([
             'user' => new UserResource($user),
             'roles' => $user->getRoleNames(),
