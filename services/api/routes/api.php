@@ -3,6 +3,9 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\InventoryMovementController;
+use App\Http\Controllers\Api\InventoryStockController;
+use App\Http\Controllers\Api\LookupController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ProductExportController;
@@ -65,6 +68,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/orders/{order}/return', [ReturnController::class, 'showByOrder']);
     Route::post('/returns/{return}/items', [ReturnController::class, 'addItem']);
     Route::post('/returns/{return}/restock', [ReturnController::class, 'restock']);
+    Route::get('/inventory/stocks', [InventoryStockController::class, 'index']);
+    Route::get('/inventory/movements', [InventoryMovementController::class, 'index']);
+    Route::post('/inventory/movements', [InventoryMovementController::class, 'store']);
+    Route::get('/lookups/order-create', [LookupController::class, 'orderCreate']);
 
     Route::get('/reports/orders/summary', [ReportController::class, 'ordersSummary']);
     Route::get('/reports/inventory/summary', [ReportController::class, 'inventorySummary']);

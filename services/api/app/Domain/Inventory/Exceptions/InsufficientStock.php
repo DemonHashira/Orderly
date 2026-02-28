@@ -21,4 +21,12 @@ final class InsufficientStock extends RuntimeException
             "On hand: $onHand, Required: $required"
         );
     }
+
+    public static function reservedFloor(int $productId, int $newOnHand, int $reserved): self
+    {
+        return new self(
+            "Insufficient stock for product_id=$productId. ".
+            "On hand after movement: $newOnHand, Reserved: $reserved"
+        );
+    }
 }

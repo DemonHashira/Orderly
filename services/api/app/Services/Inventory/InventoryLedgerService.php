@@ -150,4 +150,54 @@ final class InventoryLedgerService
             ])->save();
         }
     }
+
+    public function applyManualMovement(
+        int $organizationId,
+        int $productId,
+        int $actorUserId,
+        string $type,
+        int $quantityDelta,
+        string $reason,
+    ): array {
+        return DB::transaction(function () use ($organizationId, $productId, $actorUserId, $type, $quantityDelta, $reason) {
+            $stock = InventoryStock::query()
+                ->where('organization_id', $organizationId)
+                ->where('product_id', $productId)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $newQtyOnHand = $stock->qty_on_hand + $quantityDelta;
+
+            if ($newQtyOnHand < 0) {
+                throw InsufficientStock::onHand(
+                    productId: $productId,
+                    onHand: (int) $stock->qty_on_hand,
+                    required: abs($quantityDelta),
+                );
+            }
+
+            if ($newQtyOnHand < $stock->qty_reserved) {
+                throw InsufficientStock::reservedFloor(
+                    productId: $productId,
+                    newOnHand: (int) $newQtyOnHand,
+                    reserved: (int) $stock->qty_reserved,
+                );
+            }
+
+            $movement = InventoryMovement::query()->create([
+                'organization_id' => $organizationId,
+                'product_id' => $productId,
+                'performed_by_user_id' => $actorUserId,
+                'type' => $type,
+                'qty_delta' => $quantityDelta,
+                'reason' => $reason,
+            ]);
+
+            $stock->forceFill([
+                'qty_on_hand' => $newQtyOnHand,
+            ])->save();
+
+            return [$movement, $stock->refresh()];
+        });
+    }
 }

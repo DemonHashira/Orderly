@@ -51,6 +51,20 @@ test('service preloads existing skus and avoids per-row select lookups', functio
         ->and($summary['updated'])->toBe(2)
         ->and($summary['failed'])->toBe(0)
         ->and($productSelectCount)->toBe(1);
+
+    $products = Product::query()
+        ->forOrg($organization->id)
+        ->whereIn('sku', ['ABC-1', 'DEF-2', 'GHI-3'])
+        ->get();
+
+    foreach ($products as $product) {
+        $this->assertDatabaseHas('inventory_stocks', [
+            'organization_id' => $organization->id,
+            'product_id' => $product->id,
+            'qty_on_hand' => 0,
+            'qty_reserved' => 0,
+        ]);
+    }
 });
 
 test('service detects missing required headers', function () {
@@ -95,6 +109,18 @@ test('service normalizes decimal precision for sale_price', function () {
         'organization_id' => $organization->id,
         'sku' => 'ABC-1',
         'sale_price' => '12.50',
+    ]);
+
+    $product = Product::query()
+        ->forOrg($organization->id)
+        ->where('sku', 'ABC-1')
+        ->firstOrFail();
+
+    $this->assertDatabaseHas('inventory_stocks', [
+        'organization_id' => $organization->id,
+        'product_id' => $product->id,
+        'qty_on_hand' => 0,
+        'qty_reserved' => 0,
     ]);
 });
 

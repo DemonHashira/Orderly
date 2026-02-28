@@ -3,6 +3,7 @@
 namespace App\Services\Import;
 
 use App\Imports\ProductsImport;
+use App\Models\InventoryStock;
 use App\Models\Product;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -204,6 +205,18 @@ final class ProductImportService
                     'is_active' => $isActive,
                 ])->save();
 
+                InventoryStock::query()->updateOrCreate(
+                    [
+                        'organization_id' => $organizationId,
+                        'product_id' => (int) $existing->id,
+                    ],
+                    [
+                        'qty_on_hand' => 0,
+                        'qty_reserved' => 0,
+                        'reorder_threshold' => null,
+                    ],
+                );
+
                 return [
                     'action' => 'updated',
                     'product' => $existing,
@@ -218,6 +231,18 @@ final class ProductImportService
                 'description' => $description,
                 'is_active' => $isActive,
             ]);
+
+            InventoryStock::query()->updateOrCreate(
+                [
+                    'organization_id' => $organizationId,
+                    'product_id' => (int) $product->id,
+                ],
+                [
+                    'qty_on_hand' => 0,
+                    'qty_reserved' => 0,
+                    'reorder_threshold' => null,
+                ],
+            );
 
             return [
                 'action' => 'created',

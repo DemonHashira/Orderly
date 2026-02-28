@@ -48,6 +48,20 @@ test('valid import creates products and normalizes sku', function () {
         'sku' => 'XYZ-2',
         'is_active' => false,
     ]);
+
+    $createdProducts = Product::query()
+        ->forOrg($organization->id)
+        ->whereIn('sku', ['ABC-1', 'XYZ-2'])
+        ->get();
+
+    foreach ($createdProducts as $product) {
+        $this->assertDatabaseHas('inventory_stocks', [
+            'organization_id' => $organization->id,
+            'product_id' => $product->id,
+            'qty_on_hand' => 0,
+            'qty_reserved' => 0,
+        ]);
+    }
 });
 
 test('import updates existing sku in same organization', function () {
@@ -82,6 +96,18 @@ test('import updates existing sku in same organization', function () {
         'sku' => 'ABC-1',
         'name' => 'Updated Name',
         'sale_price' => '15.20',
+    ]);
+
+    $updatedProduct = Product::query()
+        ->forOrg($organization->id)
+        ->where('sku', 'ABC-1')
+        ->firstOrFail();
+
+    $this->assertDatabaseHas('inventory_stocks', [
+        'organization_id' => $organization->id,
+        'product_id' => $updatedProduct->id,
+        'qty_on_hand' => 0,
+        'qty_reserved' => 0,
     ]);
 });
 
