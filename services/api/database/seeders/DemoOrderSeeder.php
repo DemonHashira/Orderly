@@ -21,6 +21,7 @@ class DemoOrderSeeder extends Seeder
     public function run(): void
     {
         $org = Organization::query()->where('slug', 'otaku-store')->firstOrFail();
+        fake()->seed(20260304);
 
         // Get users for different roles
         $owner = User::query()
@@ -48,8 +49,8 @@ class DemoOrderSeeder extends Seeder
             ?? $orderManager;
 
         $channels = SalesChannel::query()->get()->keyBy('code');
-        $customers = Customer::query()->where('organization_id', $org->id)->inRandomOrder()->take(12)->get();
-        $products = Product::query()->where('organization_id', $org->id)->inRandomOrder()->get();
+        $customers = Customer::query()->where('organization_id', $org->id)->orderBy('id')->get();
+        $products = Product::query()->where('organization_id', $org->id)->orderBy('id')->get();
 
         if ($customers->isEmpty() || $products->isEmpty() || $channels->isEmpty()) {
             throw new \RuntimeException('DemoOrderSeeder requires organizations, users, sales channels, customers and products to exist.');

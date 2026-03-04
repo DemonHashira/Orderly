@@ -74,6 +74,56 @@ class ProductSeeder extends Seeder
             ];
         }
 
+        $figurines = [
+            ['code' => 'GOJO', 'name' => 'Satoru Gojo Scale Figure', 'price' => 79.00],
+            ['code' => 'MIKASA', 'name' => 'Mikasa Ackerman Action Figure', 'price' => 74.00],
+            ['code' => 'LUFFY', 'name' => 'Luffy Gear Fifth Figure', 'price' => 84.00],
+            ['code' => 'ANYA', 'name' => 'Anya Forger Figure', 'price' => 68.00],
+            ['code' => 'DENJI', 'name' => 'Denji Chainsaw Form Figure', 'price' => 77.00],
+            ['code' => 'RIN', 'name' => 'Rin Itoshi Figure', 'price' => 66.00],
+            ['code' => 'AINZ', 'name' => 'Ainz Ooal Gown Figure', 'price' => 88.00],
+            ['code' => 'RUDEUS', 'name' => 'Rudeus Greyrat Figure', 'price' => 71.00],
+            ['code' => 'NARUTO', 'name' => 'Naruto Sage Mode Figure', 'price' => 75.00],
+            ['code' => 'GON', 'name' => 'Gon Freecss Figure', 'price' => 69.00],
+            ['code' => 'EREN', 'name' => 'Eren Titan Form Figure', 'price' => 82.00],
+            ['code' => 'MAKIMA', 'name' => 'Makima Collector Figure', 'price' => 78.00],
+            ['code' => 'VEGETA', 'name' => 'Vegeta Battle Figure', 'price' => 73.00],
+            ['code' => 'LEVI', 'name' => 'Levi Ackerman Figure', 'price' => 76.00],
+            ['code' => 'REM', 'name' => 'Rem Maid Figure', 'price' => 72.00],
+            ['code' => 'YUTA', 'name' => 'Yuta Okkotsu Figure', 'price' => 74.00],
+        ];
+
+        foreach ($figurines as $index => $figure) {
+            $products[] = [
+                'sku' => sprintf('FIG-%s-%03d', $figure['code'], $index + 1),
+                'name' => $figure['name'],
+                'description' => 'Limited edition anime figurine with display stand.',
+                'sale_price' => $figure['price'],
+            ];
+        }
+
+        $merchItems = [
+            ['code' => 'POSTER', 'name' => 'Premium Poster', 'price' => 14.00],
+            ['code' => 'KEYCHAIN', 'name' => 'Character Keychain', 'price' => 9.50],
+            ['code' => 'TSHIRT', 'name' => 'Graphic T-Shirt', 'price' => 24.00],
+            ['code' => 'MUG', 'name' => 'Themed Ceramic Mug', 'price' => 15.00],
+            ['code' => 'STICKER', 'name' => 'Sticker Pack', 'price' => 7.00],
+            ['code' => 'TOTE', 'name' => 'Canvas Tote Bag', 'price' => 19.00],
+            ['code' => 'MOUSEPAD', 'name' => 'Desk Mousepad', 'price' => 13.00],
+            ['code' => 'NOTEBOOK', 'name' => 'Hardcover Notebook', 'price' => 12.50],
+        ];
+
+        for ($series = 1; $series <= 3; $series++) {
+            foreach ($merchItems as $index => $item) {
+                $products[] = [
+                    'sku' => sprintf('MERCH-%s-%03d', $item['code'], (($series - 1) * count($merchItems)) + $index + 1),
+                    'name' => sprintf('%s Series %d', $item['name'], $series),
+                    'description' => 'Official merchandise item for daily use and gifts.',
+                    'sale_price' => $item['price'] + (($series - 1) * 0.75),
+                ];
+            }
+        }
+
         foreach ($products as $product) {
             Product::query()->updateOrCreate(
                 [

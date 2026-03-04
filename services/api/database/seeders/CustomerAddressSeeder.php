@@ -4,12 +4,15 @@ namespace Database\Seeders;
 
 use App\Models\Customer;
 use App\Models\CustomerAddress;
+use App\Models\Organization;
 use Illuminate\Database\Seeder;
 
 class CustomerAddressSeeder extends Seeder
 {
     public function run(): void
     {
+        $org = Organization::query()->where('slug', 'otaku-store')->firstOrFail();
+
         $cities = ['Sofia', 'Plovdiv', 'Varna', 'Burgas', 'Ruse', 'Stara Zagora', 'Pleven', 'Blagoevgrad'];
         $streets = [
             'Vitosha Blvd',
@@ -24,7 +27,10 @@ class CustomerAddressSeeder extends Seeder
             'Aleksandar Stamboliyski Blvd',
         ];
 
-        $customers = Customer::query()->orderBy('id')->get();
+        $customers = Customer::query()
+            ->where('organization_id', $org->id)
+            ->orderBy('id')
+            ->get();
 
         foreach ($customers as $index => $customer) {
             $city = $cities[$index % count($cities)];
