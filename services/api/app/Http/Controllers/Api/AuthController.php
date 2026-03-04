@@ -11,14 +11,18 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
+use Laravel\Sanctum\PersonalAccessToken;
+use Symfony\Component\HttpFoundation\Response as ResponseAlias;
 
 final class AuthController extends Controller
 {
     public function login(LoginRequest $request): JsonResponse
     {
         $data = $request->validated();
+        $remember = (bool) ($data['remember'] ?? false);
 
         $invalid = ValidationException::withMessages([
             'email' => ['Invalid credentials.'],
@@ -26,7 +30,7 @@ final class AuthController extends Controller
 
         if (! Auth::attempt(
             ['email' => $data['email'], 'password' => $data['password']],
-            (bool) ($data['remember'] ?? false),
+            $remember,
         )) {
             throw $invalid;
         }
@@ -42,22 +46,25 @@ final class AuthController extends Controller
             throw $invalid;
         }
 
-        return response()->json([
+        $response = response()->json([
             'user' => new UserResource($user),
         ]);
+
+        if (! $remember) {
+            $response->headers->setCookie(Cookie::forget(
+                Auth::guard('web')->getRecallerName(),
+                config('session.path', '/'),
+                config('session.domain'),
+            ));
+        }
+
+        return $response;
     }
 
     public function me(Request $request): JsonResponse
     {
         $user = $request->user();
-
-        if (! $user) {
-            return response()->json([
-                'user' => null,
-                'roles' => [],
-                'permissions' => [],
-            ]);
-        }
+        abort_if(! $user, ResponseAlias::HTTP_UNAUTHORIZED, 'Unauthenticated.');
 
         return response()->json([
             'user' => new UserResource($user),
@@ -68,13 +75,35 @@ final class AuthController extends Controller
 
     public function logout(Request $request): JsonResponse
     {
-        Auth::guard('web')->logout();
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+        $user = $request->user();
+        $currentAccessToken = $user?->currentAccessToken();
+        if ($currentAccessToken instanceof PersonalAccessToken) {
+            $currentAccessToken->delete();
+        }
 
-        return response()->json([
+        Auth::guard('web')->logout();
+
+        if ($request->hasSession()) {
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
+
+        $response = response()->json([
             'message' => 'Logged out.',
         ]);
+
+        $response->headers->setCookie(Cookie::forget(
+            Auth::guard('web')->getRecallerName(),
+            config('session.path', '/'),
+            config('session.domain'),
+        ));
+        $response->headers->setCookie(Cookie::forget(
+            config('session.cookie'),
+            config('session.path', '/'),
+            config('session.domain'),
+        ));
+
+        return $response;
     }
 
     public function tokenLogin(TokenLoginRequest $request): JsonResponse

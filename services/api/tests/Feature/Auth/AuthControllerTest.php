@@ -2,11 +2,17 @@
 
 use App\Models\Organization;
 use App\Models\User;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Permission;
 
 uses(RefreshDatabase::class);
+
+beforeEach(function () {
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+});
 
 test('login returns authenticated user and session cookie', function () {
     $org = Organization::factory()->create();
@@ -57,6 +63,25 @@ test('login with remember sets recaller cookie', function () {
     $response
         ->assertStatus(200)
         ->assertCookie(Auth::guard('web')->getRecallerName());
+});
+
+test('login without remember clears recaller cookie', function () {
+    $org = Organization::factory()->create();
+    $user = User::factory()->create([
+        'organization_id' => $org->id,
+        'email' => 'remember-clear@example.com',
+        'is_active' => true,
+    ]);
+
+    $response = $this->postJson('/api/auth/login', [
+        'email' => $user->email,
+        'password' => 'password',
+        'remember' => false,
+    ]);
+
+    $response
+        ->assertStatus(200)
+        ->assertCookieExpired(Auth::guard('web')->getRecallerName());
 });
 
 test('login rejects invalid credentials', function () {
@@ -123,6 +148,71 @@ test('me returns user roles and permissions', function () {
         ]);
 });
 
+test('me requires authentication', function () {
+    $this->getJson('/api/auth/me')->assertStatus(401);
+});
+
+test('login without remember can access sanctum-protected dashboard route', function () {
+    Permission::findOrCreate('dashboard.view', 'web');
+    Permission::findOrCreate('reports.orders.view', 'web');
+
+    $org = Organization::factory()->create();
+    $user = User::factory()->create([
+        'organization_id' => $org->id,
+        'email' => 'session-only@example.com',
+        'is_active' => true,
+    ]);
+    $user->givePermissionTo(['dashboard.view', 'reports.orders.view']);
+
+    $this->postJson('/api/auth/login', [
+        'email' => $user->email,
+        'password' => 'password',
+        'remember' => false,
+    ])->assertStatus(200);
+
+    $this->getJson('/api/dashboard')->assertStatus(200);
+});
+
+test('login with remember can access sanctum-protected dashboard route', function () {
+    Permission::findOrCreate('dashboard.view', 'web');
+    Permission::findOrCreate('reports.orders.view', 'web');
+
+    $org = Organization::factory()->create();
+    $user = User::factory()->create([
+        'organization_id' => $org->id,
+        'email' => 'remember-session@example.com',
+        'is_active' => true,
+    ]);
+    $user->givePermissionTo(['dashboard.view', 'reports.orders.view']);
+
+    $this->postJson('/api/auth/login', [
+        'email' => $user->email,
+        'password' => 'password',
+        'remember' => true,
+    ])->assertStatus(200);
+
+    $this->getJson('/api/dashboard')->assertStatus(200);
+});
+
+test('token authenticated user can fetch me', function () {
+    $org = Organization::factory()->create();
+    $user = User::factory()->create([
+        'organization_id' => $org->id,
+        'email' => 'token-me@example.com',
+        'is_active' => true,
+    ]);
+    $token = $user->createToken('postman');
+
+    $response = $this
+        ->withHeader('Authorization', 'Bearer '.$token->plainTextToken)
+        ->getJson('/api/auth/me');
+
+    $response
+        ->assertStatus(200)
+        ->assertJsonPath('user.id', $user->id)
+        ->assertJsonPath('user.email', $user->email);
+});
+
 test('logout invalidates session authentication', function () {
     $org = Organization::factory()->create();
     $user = User::factory()->create([
@@ -144,6 +234,45 @@ test('logout invalidates session authentication', function () {
         ]);
 
     $this->assertGuest('web');
+});
+
+test('logout clears recaller cookie', function () {
+    $org = Organization::factory()->create();
+    $user = User::factory()->create([
+        'organization_id' => $org->id,
+        'email' => 'logout-remember@example.com',
+    ]);
+
+    $this->postJson('/api/auth/login', [
+        'email' => $user->email,
+        'password' => 'password',
+        'remember' => true,
+    ])->assertStatus(200);
+
+    $response = $this->postJson('/api/auth/logout');
+
+    $response
+        ->assertStatus(200)
+        ->assertCookieExpired(Auth::guard('web')->getRecallerName());
+});
+
+test('logout revokes current sanctum token when authenticated via bearer token', function () {
+    $org = Organization::factory()->create();
+    $user = User::factory()->create([
+        'organization_id' => $org->id,
+        'email' => 'token-logout@example.com',
+        'is_active' => true,
+    ]);
+    $token = $user->createToken('postman');
+
+    $this
+        ->withHeader('Authorization', 'Bearer '.$token->plainTextToken)
+        ->postJson('/api/auth/logout')
+        ->assertStatus(200);
+
+    $this->assertDatabaseMissing('personal_access_tokens', [
+        'id' => $token->accessToken->id,
+    ]);
 });
 
 test('login is rate limited', function () {
