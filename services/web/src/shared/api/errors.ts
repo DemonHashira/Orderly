@@ -9,6 +9,13 @@ const fallbackMessageForStatus = (status: number | null): string => {
 
 export const normalizeApiError = (err: unknown): NormalizedApiError => {
   if (!axios.isAxiosError(err)) {
+    if (err instanceof Error) {
+      return {
+        status: null,
+        message: err.message || 'Unexpected error',
+      }
+    }
+
     return {
       status: null,
       message: 'Unexpected error',

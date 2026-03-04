@@ -11,7 +11,7 @@ function createAxiosError(response: { status: number; data?: object }) {
 describe('normalizeApiError', () => {
   it('returns unexpected error for non-Axios errors', () => {
     const result = normalizeApiError(new Error('generic'))
-    expect(result).toEqual({ status: null, message: 'Unexpected error' })
+    expect(result).toEqual({ status: null, message: 'generic' })
   })
 
   it('returns 401 fallback message when no data message', () => {
