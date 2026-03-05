@@ -1,32 +1,31 @@
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
-import { Button } from '@/components/ui/button'
+import { computed } from 'vue'
 import { useAuth } from '@/features/auth/composables/useAuth'
-import { useLogoutMutation } from '@/features/auth/composables/useLogoutMutation'
+import { resolveDashboardRoleView } from '@/features/dashboard/model'
+import OwnerDashboardView from '@/features/dashboard/views/OwnerDashboardView.vue'
+import OrderManagerDashboardView from '@/features/dashboard/views/OrderManagerDashboardView.vue'
+import LogisticsDashboardView from '@/features/dashboard/views/LogisticsDashboardView.vue'
+import InventoryDashboardView from '@/features/dashboard/views/InventoryDashboardView.vue'
+import GenericDashboardView from '@/features/dashboard/views/GenericDashboardView.vue'
 
-const { user } = useAuth()
-const logoutMutation = useLogoutMutation()
-const router = useRouter()
+const { permissions, roles } = useAuth()
 
-const onLogout = async (): Promise<void> => {
-  try {
-    await logoutMutation.mutateAsync()
-  } finally {
-    await router.push('/login')
-  }
-}
+const roleView = computed(() =>
+  resolveDashboardRoleView({
+    permissions: permissions.value,
+    roles: roles.value,
+  }),
+)
+
+const roleComponent = computed(() => {
+  if (roleView.value === 'owner') return OwnerDashboardView
+  if (roleView.value === 'order_manager') return OrderManagerDashboardView
+  if (roleView.value === 'logistics') return LogisticsDashboardView
+  if (roleView.value === 'inventory') return InventoryDashboardView
+  return GenericDashboardView
+})
 </script>
 
 <template>
-  <main class="mx-auto flex min-h-svh w-full max-w-5xl flex-col gap-6 px-6 py-10">
-    <header class="flex items-center justify-between">
-      <div>
-        <h1 class="text-3xl font-bold">Dashboard</h1>
-        <p class="text-muted-foreground mt-1">
-          Welcome back{{ user?.first_name ? `, ${user.first_name}` : '' }}.
-        </p>
-      </div>
-      <Button variant="outline" @click="onLogout">Logout</Button>
-    </header>
-  </main>
+  <component :is="roleComponent" />
 </template>

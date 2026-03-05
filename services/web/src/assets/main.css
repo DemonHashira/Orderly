@@ -121,4 +121,88 @@
   body {
     @apply overflow-x-hidden;
   }
+  html {
+    scrollbar-gutter: stable;
+  }
+}
+
+.dashboard-section-enter-active,
+.dashboard-section-leave-active {
+  transition:
+    opacity 300ms ease-in-out,
+    transform 300ms ease-in-out;
+}
+
+.dashboard-section-enter-from,
+.dashboard-section-leave-to {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.dashboard-grid-enter-active,
+.dashboard-grid-leave-active {
+  transition:
+    opacity 300ms ease-in-out,
+    transform 300ms ease-in-out;
+}
+
+.dashboard-grid-enter-from,
+.dashboard-grid-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.dashboard-grid-move {
+  transition: transform 300ms ease-in-out;
+}
+
+.app-page-enter-active,
+.app-page-leave-active {
+  transition:
+    opacity 300ms ease-in-out,
+    transform 300ms ease-in-out;
+}
+
+.app-page-enter-from,
+.app-page-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.dashboard-card-interactive {
+  transition:
+    transform 260ms ease,
+    box-shadow 260ms ease,
+    border-color 260ms ease;
+  will-change: transform;
+}
+
+.dashboard-card-interactive:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 10px 24px -16px oklch(0.145 0 0 / 35%),
+    0 4px 10px -8px oklch(0.145 0 0 / 24%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-section-enter-active,
+  .dashboard-section-leave-active,
+  .dashboard-grid-enter-active,
+  .dashboard-grid-leave-active,
+  .dashboard-grid-move,
+  .dashboard-card-interactive,
+  .app-page-enter-active,
+  .app-page-leave-active {
+    transition-duration: 1ms !important;
+  }
+
+  .dashboard-section-enter-from,
+  .dashboard-section-leave-to,
+  .dashboard-grid-enter-from,
+  .dashboard-grid-leave-to,
+  .dashboard-card-interactive:hover,
+  .app-page-enter-from,
+  .app-page-leave-to {
+    transform: none;
+  }
 }
