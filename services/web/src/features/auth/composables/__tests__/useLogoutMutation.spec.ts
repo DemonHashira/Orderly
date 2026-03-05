@@ -16,6 +16,7 @@ describe('useLogoutMutation', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
     queryClient.clear()
+    vi.spyOn(authApi, 'getCsrfCookie').mockResolvedValue(undefined)
     vi.spyOn(authApi, 'logout').mockResolvedValue(undefined)
   })
 
@@ -42,6 +43,7 @@ describe('useLogoutMutation', () => {
     await wrapper.find('[data-testid="logout-btn"]').trigger('click')
     await flushPromises()
 
+    expect(authApi.getCsrfCookie).toHaveBeenCalledTimes(1)
     expect(authApi.logout).toHaveBeenCalledTimes(1)
     expect(removeQueriesSpy).toHaveBeenCalledWith({ queryKey: ['auth', 'me'] })
   })
@@ -73,6 +75,40 @@ describe('useLogoutMutation', () => {
     await wrapper.find('[data-testid="logout-btn"]').trigger('click')
     await flushPromises()
 
+    expect(removeQueriesSpy).toHaveBeenCalledWith({ queryKey: ['auth', 'me'] })
+  })
+
+  it('refreshes csrf and retries logout once on 419', async () => {
+    const removeQueriesSpy = vi.spyOn(queryClient, 'removeQueries')
+    vi.spyOn(authApi, 'logout')
+      .mockRejectedValueOnce({
+        isAxiosError: true,
+        response: { status: 419, data: {} },
+      })
+      .mockResolvedValueOnce(undefined)
+
+    const TestComponent = defineComponent({
+      setup() {
+        const mutation = useLogoutMutation()
+        return () =>
+          h('button', {
+            'data-testid': 'logout-btn',
+            onClick: () => mutation.mutate(),
+          })
+      },
+    })
+
+    const wrapper = mount(TestComponent, {
+      global: {
+        plugins: [createPinia(), [VueQueryPlugin, { queryClient }]],
+      },
+    })
+
+    await wrapper.find('[data-testid="logout-btn"]').trigger('click')
+    await flushPromises()
+
+    expect(authApi.getCsrfCookie).toHaveBeenCalledTimes(2)
+    expect(authApi.logout).toHaveBeenCalledTimes(2)
     expect(removeQueriesSpy).toHaveBeenCalledWith({ queryKey: ['auth', 'me'] })
   })
 })

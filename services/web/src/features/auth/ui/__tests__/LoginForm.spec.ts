@@ -38,8 +38,13 @@ describe('LoginForm', () => {
 
   it('renders login form with email and password fields', async () => {
     const wrapper = await mountForm()
-    expect(wrapper.find('input[type="email"]').exists()).toBe(true)
-    expect(wrapper.find('input[type="password"]').exists()).toBe(true)
+    const emailInput = wrapper.find('input[type="email"]')
+    const passwordInput = wrapper.find('input[type="password"]')
+
+    expect(emailInput.exists()).toBe(true)
+    expect(passwordInput.exists()).toBe(true)
+    expect(emailInput.attributes('placeholder')).toBe('m@example.com')
+    expect(passwordInput.attributes('placeholder')).toBe('Enter your password')
     expect(wrapper.find('button[type="submit"]').exists()).toBe(true)
     expect(wrapper.text()).toContain('Login to your account')
   })

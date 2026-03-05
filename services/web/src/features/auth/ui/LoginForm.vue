@@ -52,6 +52,15 @@ const isSafeInternalRedirect = (value: string): boolean => {
   return value.startsWith('/') && !value.startsWith('//')
 }
 
+const isInvalidCredentialError = (error: ReturnType<typeof normalizeApiError>): boolean => {
+  if (error.status === 401) {
+    return true
+  }
+
+  const messages = error.fieldErrors?.email ?? []
+  return messages.some((message) => message.toLowerCase().includes('invalid credential'))
+}
+
 const onSubmit = handleSubmit(async (values) => {
   formError.value = ''
 
@@ -66,14 +75,14 @@ const onSubmit = handleSubmit(async (values) => {
     await router.push(redirectTarget)
   } catch (error: unknown) {
     const normalizedError = normalizeApiError(error)
-    const hasCredentialError = normalizedError.status === 401
+    const hasCredentialError = isInvalidCredentialError(normalizedError)
 
     if (hasCredentialError) {
       setErrors({
-        email: '',
-        password: '',
+        email: undefined,
+        password: undefined,
       })
-      formError.value = 'Invalid email or password.'
+      formError.value = 'Login failed. Check your email and password, then try again.'
       return
     }
 
@@ -134,6 +143,7 @@ const onSubmit = handleSubmit(async (values) => {
           v-model="password"
           v-bind="passwordAttrs"
           type="password"
+          placeholder="Enter your password"
           class="transition-all duration-200"
           :aria-invalid="Boolean(errors.password)"
           required
