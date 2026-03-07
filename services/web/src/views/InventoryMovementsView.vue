@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -29,9 +30,22 @@ import {
   StatusBadge,
 } from '@/shared/ui'
 import { formatDateTime } from '@/lib/formatters'
+import { BASIC_LIST_FIELDS, useListUiStateStore } from '@/stores/list-ui-state'
 
-const page = ref(1)
-const search = ref('')
+const route = useRoute()
+const router = useRouter()
+const listUiStore = useListUiStateStore()
+const listModule = 'inventory_movements' as const
+const isSyncingFromRoute = ref(false)
+
+const page = computed({
+  get: () => listUiStore.modules[listModule].page,
+  set: (value: number) => listUiStore.setState(listModule, { page: value }),
+})
+const search = computed({
+  get: () => listUiStore.modules[listModule].q,
+  set: (value: string) => listUiStore.setState(listModule, { q: value }),
+})
 const debouncedSearch = useDebouncedRef(search)
 
 const movementForm = ref({
@@ -55,6 +69,55 @@ const movements = computed(() => movementsQuery.data.value?.data ?? [])
 const meta = computed(() => movementsQuery.data.value?.meta)
 const isInitialLoading = useInitialLoadingGate(movementsQuery.isLoading)
 const isRefreshing = computed(() => !isInitialLoading.value && movementsQuery.isFetching.value)
+
+watch(
+  () => route.query,
+  (query) => {
+    const normalizedQuery = query as Record<string, unknown>
+    if (!listUiStore.hasRelevantQuery(normalizedQuery, BASIC_LIST_FIELDS)) {
+      const persisted = listUiStore.toQuery(listModule, BASIC_LIST_FIELDS)
+      if (Object.keys(persisted).length > 0) {
+        void router.replace({ query: persisted })
+      }
+      return
+    }
+
+    isSyncingFromRoute.value = true
+    listUiStore.hydrateFromQuery(listModule, normalizedQuery, BASIC_LIST_FIELDS)
+    isSyncingFromRoute.value = false
+  },
+  { immediate: true },
+)
+
+watch(search, () => {
+  if (!isSyncingFromRoute.value) {
+    page.value = 1
+  }
+})
+
+watch([debouncedSearch, page], () => {
+  if (isSyncingFromRoute.value) {
+    return
+  }
+
+  const nextQuery = {
+    ...listUiStore.toQuery(listModule, BASIC_LIST_FIELDS),
+    ...(debouncedSearch.value ? { q: debouncedSearch.value } : {}),
+  }
+  const currentQuery = listUiStore.normalizeQuery(
+    listModule,
+    route.query as Record<string, unknown>,
+    BASIC_LIST_FIELDS,
+  )
+
+  if (JSON.stringify(nextQuery) === JSON.stringify(currentQuery)) {
+    return
+  }
+
+  void router.replace({
+    query: nextQuery,
+  })
+})
 
 const submitMovement = async () => {
   await createMovementMutation.mutateAsync({
@@ -128,15 +191,15 @@ const submitMovement = async () => {
 
     <ApiErrorAlert v-if="movementsQuery.error.value" message="Failed to load movements." />
 
-    <Card>
-      <CardContent class="pt-6">
-        <EmptyStateCard
-          v-if="!movementsQuery.isLoading.value && movements.length === 0"
-          title="No movements"
-          description="No movement history for current filters."
-        />
+    <EmptyStateCard
+      v-if="!movementsQuery.isLoading.value && movements.length === 0"
+      title="No movements"
+      description="No movement history for current filters."
+    />
 
-        <Table v-else>
+    <Card v-else>
+      <CardContent class="pt-6">
+        <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Product</TableHead>

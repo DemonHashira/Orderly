@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { computed, ref, watch } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { Card, CardContent } from '@/components/ui/card'
 import {
   Table,
@@ -27,9 +27,22 @@ import {
   PageRefetchOverlay,
   ServerPagination,
 } from '@/shared/ui'
+import { BASIC_LIST_FIELDS, useListUiStateStore } from '@/stores/list-ui-state'
 
-const page = ref(1)
-const search = ref('')
+const route = useRoute()
+const router = useRouter()
+const listUiStore = useListUiStateStore()
+const listModule = 'returns' as const
+const isSyncingFromRoute = ref(false)
+
+const page = computed({
+  get: () => listUiStore.modules[listModule].page,
+  set: (value: number) => listUiStore.setState(listModule, { page: value }),
+})
+const search = computed({
+  get: () => listUiStore.modules[listModule].q,
+  set: (value: string) => listUiStore.setState(listModule, { q: value }),
+})
 const debouncedSearch = useDebouncedRef(search)
 
 const returnsQuery = useReturnsQuery(
@@ -46,6 +59,55 @@ const returnOrders = computed(() => returnsQuery.data.value?.data ?? [])
 const meta = computed(() => returnsQuery.data.value?.meta)
 const isInitialLoading = useInitialLoadingGate(returnsQuery.isLoading)
 const isRefreshing = computed(() => !isInitialLoading.value && returnsQuery.isFetching.value)
+
+watch(
+  () => route.query,
+  (query) => {
+    const normalizedQuery = query as Record<string, unknown>
+    if (!listUiStore.hasRelevantQuery(normalizedQuery, BASIC_LIST_FIELDS)) {
+      const persisted = listUiStore.toQuery(listModule, BASIC_LIST_FIELDS)
+      if (Object.keys(persisted).length > 0) {
+        void router.replace({ query: persisted })
+      }
+      return
+    }
+
+    isSyncingFromRoute.value = true
+    listUiStore.hydrateFromQuery(listModule, normalizedQuery, BASIC_LIST_FIELDS)
+    isSyncingFromRoute.value = false
+  },
+  { immediate: true },
+)
+
+watch(search, () => {
+  if (!isSyncingFromRoute.value) {
+    page.value = 1
+  }
+})
+
+watch([debouncedSearch, page], () => {
+  if (isSyncingFromRoute.value) {
+    return
+  }
+
+  const nextQuery = {
+    ...listUiStore.toQuery(listModule, BASIC_LIST_FIELDS),
+    ...(debouncedSearch.value ? { q: debouncedSearch.value } : {}),
+  }
+  const currentQuery = listUiStore.normalizeQuery(
+    listModule,
+    route.query as Record<string, unknown>,
+    BASIC_LIST_FIELDS,
+  )
+
+  if (JSON.stringify(nextQuery) === JSON.stringify(currentQuery)) {
+    return
+  }
+
+  void router.replace({
+    query: nextQuery,
+  })
+})
 </script>
 
 <template>
@@ -63,15 +125,15 @@ const isRefreshing = computed(() => !isInitialLoading.value && returnsQuery.isFe
 
     <ApiErrorAlert v-if="returnsQuery.error.value" message="Failed to load returns." />
 
-    <Card>
-      <CardContent class="pt-6">
-        <EmptyStateCard
-          v-if="!returnsQuery.isLoading.value && returnOrders.length === 0"
-          title="No returns"
-          description="No return records available for the current filters."
-        />
+    <EmptyStateCard
+      v-if="!returnsQuery.isLoading.value && returnOrders.length === 0"
+      title="No returns"
+      description="No return records available for the current filters."
+    />
 
-        <Table v-else>
+    <Card v-else>
+      <CardContent class="pt-6">
+        <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Order</TableHead>
