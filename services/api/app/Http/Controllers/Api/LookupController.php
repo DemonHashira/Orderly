@@ -30,11 +30,12 @@ final class LookupController extends Controller
             ->forOrg($organizationId)
             ->where('is_active', true)
             ->orderBy('name')
-            ->get(['id', 'sku', 'name'])
+            ->get(['id', 'sku', 'name', 'sale_price'])
             ->map(fn (Product $product): array => [
                 'id' => (int) $product->id,
                 'sku' => (string) $product->sku,
                 'name' => (string) $product->name,
+                'sale_price' => (string) $product->sale_price,
             ]);
 
         return response()->json([

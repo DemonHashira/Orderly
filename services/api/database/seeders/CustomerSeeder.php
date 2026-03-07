@@ -15,25 +15,41 @@ class CustomerSeeder extends Seeder
 
         fake()->seed(20260304);
 
-        $firstNames = [
-            'Mariya', 'Georgi', 'Elena', 'Ivan', 'Petya', 'Radoslav', 'Nadezhda', 'Svetoslav',
-            'Dimitar', 'Katerina', 'Nikolay', 'Aleksandra', 'Viktor', 'Daniela', 'Hristo', 'Yordan',
-            'Desislava', 'Teodor', 'Kristina', 'Borislav', 'Milena', 'Plamen', 'Radina', 'Tsvetan',
-            'Monika', 'Stanislav', 'Yoana', 'Atanas', 'Simona', 'Valentin', 'Veronika', 'Petar',
+        $maleFirstNames = [
+            'Georgi', 'Ivan', 'Radoslav', 'Svetoslav', 'Dimitar', 'Nikolay', 'Viktor', 'Hristo',
+            'Yordan', 'Teodor', 'Borislav', 'Plamen', 'Tsvetan', 'Stanislav', 'Atanas', 'Valentin',
+            'Petar', 'Kiril', 'Lyubomir', 'Milen',
         ];
-        $middleNames = [
+        $femaleFirstNames = [
+            'Mariya', 'Elena', 'Petya', 'Nadezhda', 'Katerina', 'Aleksandra', 'Daniela', 'Desislava',
+            'Kristina', 'Milena', 'Radina', 'Monika', 'Yoana', 'Simona', 'Veronika', 'Kalina',
+            'Gergana', 'Diana', 'Violeta', 'Yana',
+        ];
+        $maleMiddleNames = [
             'Petrov', 'Georgiev', 'Ivanov', 'Dimitrov', 'Nikolov', 'Hristov', 'Atanasov', 'Todorov',
             'Iliev', 'Kostov', 'Mihaylov', 'Radev',
         ];
-        $lastNames = [
-            'Petrova', 'Stoyanov', 'Dimitrova', 'Georgiev', 'Koleva', 'Iliev', 'Marinova', 'Atanasov',
-            'Petkov', 'Ruseva', 'Angelov', 'Todorova', 'Ivanov', 'Nikolov', 'Mihaylov', 'Vasileva',
-            'Hadzhieva', 'Yanev', 'Krasteva', 'Borisov', 'Stefanova', 'Rangelov', 'Popova', 'Velikov',
+        $femaleMiddleNames = [
+            'Petrova', 'Georgieva', 'Ivanova', 'Dimitrova', 'Nikolova', 'Hristova', 'Atanasova', 'Todorova',
+            'Ilieva', 'Kostova', 'Mihaylova', 'Radeva',
+        ];
+        $maleLastNames = [
+            'Stoyanov', 'Georgiev', 'Iliev', 'Atanasov', 'Petkov', 'Angelov', 'Ivanov', 'Nikolov',
+            'Mihaylov', 'Yanev', 'Borisov', 'Rangelov', 'Velikov', 'Kolev', 'Dimitrov', 'Vasilev',
+        ];
+        $femaleLastNames = [
+            'Petrova', 'Dimitrova', 'Koleva', 'Marinova', 'Ruseva', 'Todorova', 'Hadzhieva', 'Krasteva',
+            'Stefanova', 'Popova', 'Georgieva', 'Ilieva', 'Atanasova', 'Petkova', 'Angelova', 'Vasileva',
         ];
 
         for ($index = 1; $index <= 80; $index++) {
-            $firstName = $firstNames[($index - 1) % count($firstNames)];
-            $lastName = $lastNames[($index - 1) % count($lastNames)];
+            $isMale = $index % 2 === 1;
+            $firstNamePool = $isMale ? $maleFirstNames : $femaleFirstNames;
+            $middleNamePool = $isMale ? $maleMiddleNames : $femaleMiddleNames;
+            $lastNamePool = $isMale ? $maleLastNames : $femaleLastNames;
+
+            $firstName = $firstNamePool[($index - 1) % count($firstNamePool)];
+            $lastName = $lastNamePool[($index - 1) % count($lastNamePool)];
             $phone = sprintf('+35988%07d', 1000000 + $index);
             $email = Str::of($firstName.'.'.$lastName.'.'.$index)
                 ->lower()
@@ -52,7 +68,7 @@ class CustomerSeeder extends Seeder
                 [
                     'organization_id' => $org->id,
                     'first_name' => $firstName,
-                    'middle_name' => $hasMiddleName ? $middleNames[($index - 1) % count($middleNames)] : null,
+                    'middle_name' => $hasMiddleName ? $middleNamePool[($index - 1) % count($middleNamePool)] : null,
                     'last_name' => $lastName,
                     'phone' => $phone,
                     'email' => $email,

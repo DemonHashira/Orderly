@@ -27,6 +27,7 @@ test('order create lookups returns active org products and all sales channels', 
         'organization_id' => $organization->id,
         'sku' => 'LOOK-100',
         'name' => 'Active Product',
+        'sale_price' => 49.90,
         'is_active' => true,
     ]);
     Product::factory()->create([
@@ -60,6 +61,7 @@ test('order create lookups returns active org products and all sales channels', 
             'id' => $activeProduct->id,
             'sku' => 'LOOK-100',
             'name' => 'Active Product',
+            'sale_price' => '49.90',
         ])
         ->assertJsonMissing([
             'sku' => 'LOOK-200',
@@ -83,6 +85,7 @@ test('order create lookups returns active org products and all sales channels', 
                     'id',
                     'sku',
                     'name',
+                    'sale_price',
                 ]],
             ],
         ]);
