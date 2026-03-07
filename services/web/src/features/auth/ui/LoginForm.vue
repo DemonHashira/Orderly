@@ -4,13 +4,14 @@ import { toTypedSchema } from '@vee-validate/zod'
 import { useForm } from 'vee-validate'
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import type { LoginPayload } from '@/types/auth'
 import { useLoginMutation } from '@/features/auth/composables/useLoginMutation'
+import PasswordInput from '@/features/auth/ui/PasswordInput.vue'
+import { loginSchema } from '@/features/auth/validation/login.schema'
 import { normalizeApiError } from '@/shared/api/errors'
 import { cn } from '@/lib/utils'
 
@@ -23,13 +24,7 @@ const route = useRoute()
 const loginMutation = useLoginMutation()
 const formError = ref('')
 
-const zodSchema = z.object({
-  email: z.string().min(1, 'Email is required').email('Enter a valid email'),
-  password: z.string().min(1, 'Password is required'),
-  remember: z.boolean().optional(),
-})
-
-const schema = toTypedSchema(zodSchema as never)
+const schema = toTypedSchema(loginSchema as never)
 
 const { defineField, errors, handleSubmit, setErrors, values, setFieldValue } = useForm({
   validationSchema: schema,
@@ -138,11 +133,10 @@ const onSubmit = handleSubmit(async (values) => {
       </Field>
       <Field>
         <FieldLabel for="password"> Password </FieldLabel>
-        <Input
+        <PasswordInput
           id="password"
           v-model="password"
           v-bind="passwordAttrs"
-          type="password"
           placeholder="Enter your password"
           class="transition-all duration-200"
           :aria-invalid="Boolean(errors.password)"

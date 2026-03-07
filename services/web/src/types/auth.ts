@@ -19,3 +19,9 @@ export type LoginPayload = {
   password: string
   remember?: boolean
 }
+
+export type ChangePasswordPayload = {
+  current_password: string
+  password: string
+  password_confirmation: string
+}

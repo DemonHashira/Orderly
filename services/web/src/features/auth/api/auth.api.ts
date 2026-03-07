@@ -1,5 +1,5 @@
 import { apiClient } from '@/shared/api/client'
-import type { AuthMeResponse, LoginPayload } from '@/types/auth'
+import type { AuthMeResponse, ChangePasswordPayload, LoginPayload } from '@/types/auth'
 
 export const getCsrfCookie = async (): Promise<void> => {
   await apiClient.get('/sanctum/csrf-cookie')
@@ -16,4 +16,11 @@ export const login = async (payload: LoginPayload): Promise<void> => {
 
 export const logout = async (): Promise<void> => {
   await apiClient.post('/api/auth/logout')
+}
+
+export const changePassword = async (
+  payload: ChangePasswordPayload,
+): Promise<{ message: string }> => {
+  const { data } = await apiClient.post<{ message: string }>('/api/auth/change-password', payload)
+  return data
 }
