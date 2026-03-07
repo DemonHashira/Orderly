@@ -128,7 +128,7 @@ export type SalesChannel = {
 
 export type LookupOrderCreate = {
   sales_channels: SalesChannel[]
-  products: Array<Pick<Product, 'id' | 'sku' | 'name'>>
+  products: Array<Pick<Product, 'id' | 'sku' | 'name' | 'sale_price'>>
 }
 
 export type OrderListParams = PaginationParams &

@@ -61,4 +61,80 @@ describe('app router login guard', () => {
     expect(router.currentRoute.value.path).toBe('/dashboard')
     expect(fetchMe).not.toHaveBeenCalled()
   })
+
+  it('allows authenticated users to access account security route', async () => {
+    const { router, fetchMe } = await loadRouter()
+    fetchMe.mockResolvedValue({
+      user: {
+        id: 1,
+        organization_id: 1,
+        email: 'user@example.com',
+        first_name: 'User',
+        middle_name: null,
+        last_name: 'Example',
+        is_active: true,
+      },
+      roles: [],
+      permissions: [],
+    })
+
+    await router.replace('/account/security')
+
+    expect(router.currentRoute.value.path).toBe('/account/security')
+  })
+
+  it('redirects unauthenticated users to login for account security route', async () => {
+    const { router, fetchMe } = await loadRouter()
+    fetchMe.mockRejectedValue({
+      isAxiosError: true,
+      response: { status: 401, data: {} },
+    })
+
+    await router.replace('/account/security')
+
+    expect(router.currentRoute.value.path).toBe('/login')
+    expect(router.currentRoute.value.query.redirect).toBe('/account/security')
+  })
+
+  it('allows order-create route with orders.create permission', async () => {
+    const { router, fetchMe } = await loadRouter()
+    fetchMe.mockResolvedValue({
+      user: {
+        id: 1,
+        organization_id: 1,
+        email: 'user@example.com',
+        first_name: 'User',
+        middle_name: null,
+        last_name: 'Example',
+        is_active: true,
+      },
+      roles: [],
+      permissions: ['orders.create'],
+    })
+
+    await router.replace('/orders/new')
+
+    expect(router.currentRoute.value.path).toBe('/orders/new')
+  })
+
+  it('blocks order-edit route without orders.update permission', async () => {
+    const { router, fetchMe } = await loadRouter()
+    fetchMe.mockResolvedValue({
+      user: {
+        id: 1,
+        organization_id: 1,
+        email: 'user@example.com',
+        first_name: 'User',
+        middle_name: null,
+        last_name: 'Example',
+        is_active: true,
+      },
+      roles: [],
+      permissions: ['orders.view'],
+    })
+
+    await router.replace('/orders/12/edit')
+
+    expect(router.currentRoute.value.path).toBe('/forbidden')
+  })
 })

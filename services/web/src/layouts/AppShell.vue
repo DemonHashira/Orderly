@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
-import { LogOut, Menu, Package2 } from 'lucide-vue-next'
+import { KeyRound, LogOut, Menu, Package2 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import {
   Breadcrumb,
@@ -39,6 +39,7 @@ import {
 import { useAuth } from '@/features/auth/composables/useAuth'
 import { resolveDashboardVariant, sortByPreferredOrder } from '@/features/dashboard/model'
 import { useLogoutMutation } from '@/features/auth/composables/useLogoutMutation'
+import { ORDERS_LIST_FIELDS, useListUiStateStore } from '@/stores/list-ui-state'
 import {
   filterNavByPermissions,
   findNavLabelByPath,
@@ -50,6 +51,7 @@ import {
 
 const route = useRoute()
 const router = useRouter()
+const listUiStore = useListUiStateStore()
 
 const logoutMutation = useLogoutMutation()
 const { permissions, roles, user } = useAuth()
@@ -76,6 +78,8 @@ const dashboardVariant = computed(() =>
 )
 
 const quickActions = computed(() => {
+  const _currentRouteKey = route.fullPath
+  void _currentRouteKey
   const actions = getQuickActionsByPermissions(permissions.value)
 
   const preferredByVariant = {
@@ -92,9 +96,28 @@ const quickActions = computed(() => {
     preferred,
   )
 
-  return sortedIds
+  const orderedActions = sortedIds
     .map((id) => actions.find((action) => action.id === id))
     .filter((action): action is NonNullable<typeof action> => action != null)
+
+  return orderedActions.map((action) => {
+    if (action.id !== 'orders') {
+      return action
+    }
+
+    const query = {
+      ...listUiStore.toQuery('orders', ORDERS_LIST_FIELDS),
+      status: 'ready_to_ship',
+      page: '1',
+    }
+    const params = new URLSearchParams(query)
+    const nextTo = params.toString().length > 0 ? `/orders?${params.toString()}` : '/orders'
+
+    return {
+      ...action,
+      to: nextTo,
+    }
+  })
 })
 
 const onLogout = async () => {
@@ -103,6 +126,10 @@ const onLogout = async () => {
   } finally {
     await router.push('/login')
   }
+}
+
+const onGoToChangePassword = async () => {
+  await router.push('/account/security')
 }
 </script>
 
@@ -172,6 +199,10 @@ const onLogout = async () => {
               <DropdownMenuContent align="end" class="w-56">
                 <DropdownMenuLabel>My Account</DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem @click="onGoToChangePassword">
+                  <KeyRound class="mr-2 size-4" />
+                  Change password
+                </DropdownMenuItem>
                 <DropdownMenuItem @click="onLogout">
                   <LogOut class="mr-2 size-4" />
                   Logout
@@ -249,7 +280,10 @@ const onLogout = async () => {
       <main class="flex flex-1 flex-col gap-4 p-4 md:p-6">
         <RouterView v-slot="{ Component, route: currentRoute }">
           <Transition :name="currentRoute.meta.transition ?? 'app-page'" mode="out-in" appear>
-            <component :is="Component" :key="currentRoute.path" />
+            <component
+              :is="Component"
+              :key="String(currentRoute.meta.viewKey ?? currentRoute.path)"
+            />
           </Transition>
         </RouterView>
       </main>

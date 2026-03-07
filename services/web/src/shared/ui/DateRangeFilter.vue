@@ -42,7 +42,7 @@ const isPresetRange = (days: number): boolean => {
 
   const end = new Date()
   const start = new Date()
-  start.setDate(end.getDate() - days)
+  start.setDate(end.getDate() - (days - 1))
 
   return props.from === formatDate(start) && props.to === formatDate(end)
 }
@@ -114,7 +114,7 @@ const formatDisplayDate = (value?: string) => {
 </script>
 
 <template>
-  <div class="flex flex-wrap items-center gap-2">
+  <div class="flex flex-wrap items-center gap-2 md:flex-nowrap">
     <Select
       :model-value="selectablePreset"
       @update:model-value="
@@ -124,7 +124,7 @@ const formatDisplayDate = (value?: string) => {
             : undefined
       "
     >
-      <SelectTrigger class="w-44">
+      <SelectTrigger class="w-[170px]">
         <SelectValue :placeholder="presetPlaceholder" />
       </SelectTrigger>
       <SelectContent :body-lock="false">
@@ -136,7 +136,7 @@ const formatDisplayDate = (value?: string) => {
 
     <Popover>
       <PopoverTrigger as-child>
-        <Button variant="outline" class="w-[170px] justify-between font-normal">
+        <Button variant="outline" class="w-[155px] justify-between font-normal">
           {{ formatDisplayDate(props.from) }}
           <CalendarIcon class="size-4 opacity-70" />
         </Button>
@@ -151,7 +151,7 @@ const formatDisplayDate = (value?: string) => {
 
     <Popover>
       <PopoverTrigger as-child>
-        <Button variant="outline" class="w-[170px] justify-between font-normal">
+        <Button variant="outline" class="w-[155px] justify-between font-normal">
           {{ formatDisplayDate(props.to) }}
           <CalendarIcon class="size-4 opacity-70" />
         </Button>

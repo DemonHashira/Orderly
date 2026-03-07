@@ -6,5 +6,6 @@ declare module 'vue-router' {
     permission?: string
     navGroup?: 'operations' | 'inventory' | 'catalog'
     transition?: string
+    viewKey?: string
   }
 }

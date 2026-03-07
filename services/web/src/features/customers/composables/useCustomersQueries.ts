@@ -9,12 +9,47 @@ import {
 } from '@/features/customers/api/customers.api'
 import type { CustomerListParams } from '@/types'
 
-export const useCustomersQuery = (params: MaybeRefOrGetter<CustomerListParams>) => {
+type UseCustomersQueryOptions = {
+  allPages?: MaybeRefOrGetter<boolean>
+}
+
+export const useCustomersQuery = (
+  params: MaybeRefOrGetter<CustomerListParams>,
+  options?: UseCustomersQueryOptions,
+) => {
   const queryParams = computed(() => toValue(params))
+  const shouldFetchAllPages = computed(() =>
+    options?.allPages === undefined ? false : Boolean(toValue(options.allPages)),
+  )
 
   return useQuery({
-    queryKey: computed(() => customersKeys.list(queryParams.value)),
-    queryFn: () => fetchCustomers(queryParams.value),
+    queryKey: computed(() => [
+      ...customersKeys.list(queryParams.value),
+      shouldFetchAllPages.value ? 'all-pages' : 'single-page',
+    ]),
+    queryFn: async () => {
+      const paramsValue = queryParams.value
+      const firstPage = await fetchCustomers(paramsValue)
+
+      if (!shouldFetchAllPages.value || firstPage.meta.last_page <= 1) {
+        return firstPage
+      }
+
+      const allRows = [...firstPage.data]
+      for (let currentPage = 2; currentPage <= firstPage.meta.last_page; currentPage += 1) {
+        const pageResponse = await fetchCustomers({
+          ...paramsValue,
+          page: currentPage,
+          per_page: firstPage.meta.per_page,
+        })
+        allRows.push(...pageResponse.data)
+      }
+
+      return {
+        ...firstPage,
+        data: allRows,
+      }
+    },
   })
 }
 

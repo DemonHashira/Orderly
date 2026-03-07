@@ -7,7 +7,6 @@ import AppShell from '@/layouts/AppShell.vue'
 import LoginView from '@/views/LoginView.vue'
 import DashboardView from '@/views/DashboardView.vue'
 import OrdersView from '@/views/OrdersView.vue'
-import OrderDetailView from '@/views/OrderDetailView.vue'
 import ShipmentsView from '@/views/ShipmentsView.vue'
 import ShipmentDetailView from '@/views/ShipmentDetailView.vue'
 import ReturnsView from '@/views/ReturnsView.vue'
@@ -20,6 +19,7 @@ import ProductDetailView from '@/views/ProductDetailView.vue'
 import CustomersView from '@/views/CustomersView.vue'
 import CustomerDetailView from '@/views/CustomerDetailView.vue'
 import ForbiddenView from '@/views/ForbiddenView.vue'
+import AccountSecurityView from '@/views/AccountSecurityView.vue'
 import '@/app/router/route-meta'
 
 const FIVE_MINUTES = 5 * 60 * 1000
@@ -50,16 +50,33 @@ const router = createRouter({
           meta: { permission: 'dashboard.view' },
         },
         {
+          path: 'account/security',
+          name: 'account-security',
+          component: AccountSecurityView,
+        },
+        {
           path: 'orders',
           name: 'orders',
           component: OrdersView,
-          meta: { permission: 'orders.view' },
+          meta: { permission: 'orders.view', viewKey: 'orders' },
+        },
+        {
+          path: 'orders/new',
+          name: 'order-create',
+          component: OrdersView,
+          meta: { permission: 'orders.create', viewKey: 'orders' },
         },
         {
           path: 'orders/:id',
           name: 'order-detail',
-          component: OrderDetailView,
-          meta: { permission: 'orders.view' },
+          component: OrdersView,
+          meta: { permission: 'orders.view', viewKey: 'orders' },
+        },
+        {
+          path: 'orders/:id/edit',
+          name: 'order-edit',
+          component: OrdersView,
+          meta: { permission: 'orders.update', viewKey: 'orders' },
         },
         {
           path: 'shipments',
