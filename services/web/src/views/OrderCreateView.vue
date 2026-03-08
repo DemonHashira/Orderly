@@ -11,15 +11,15 @@ import { ApiErrorAlert, PageHeader, PageInitialSkeleton, PageRefetchOverlay } fr
 
 const router = useRouter()
 const createMutation = useCreateOrderMutation()
+const fieldErrors = ref<Record<string, string>>({})
+const submitError = ref('')
+
 const customersQuery = useCustomersQuery(
   computed(() => ({
     per_page: 100,
   })),
 )
 const lookupQuery = useOrderCreateLookupQuery()
-
-const fieldErrors = ref<Record<string, string>>({})
-const submitError = ref('')
 
 const isInitialLoading = computed(
   () => customersQuery.isLoading.value || lookupQuery.isLoading.value,
@@ -28,16 +28,6 @@ const isRefreshing = computed(
   () =>
     !isInitialLoading.value && (customersQuery.isFetching.value || lookupQuery.isFetching.value),
 )
-
-const mapFieldErrors = (errors?: Record<string, string[]>) => {
-  if (!errors) {
-    return {}
-  }
-
-  return Object.fromEntries(
-    Object.entries(errors).map(([key, messages]) => [key, messages?.[0] ?? 'Invalid value']),
-  )
-}
 
 const onSubmit = async (payload: OrderUpsertPayload) => {
   submitError.value = ''
@@ -51,6 +41,16 @@ const onSubmit = async (payload: OrderUpsertPayload) => {
     fieldErrors.value = mapFieldErrors(normalized.fieldErrors)
     submitError.value = normalized.fieldErrors ? '' : normalized.message
   }
+}
+
+const mapFieldErrors = (errors?: Record<string, string[]>) => {
+  if (!errors) {
+    return {}
+  }
+
+  return Object.fromEntries(
+    Object.entries(errors).map(([key, messages]) => [key, messages?.[0] ?? 'Invalid value']),
+  )
 }
 </script>
 

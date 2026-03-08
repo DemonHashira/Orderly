@@ -57,33 +57,6 @@ const state = reactive({
 const localErrors = reactive<Record<string, string>>({})
 const dismissedServerErrorKeys = ref<Set<string>>(new Set())
 
-const setInitialStateFromOrder = (order: Order | null) => {
-  if (!order) {
-    state.customer_id = ''
-    state.sales_channel_id = ''
-    state.internal_notes = ''
-    state.items = [{ product_id: '', quantity: '1', unit_price: '' }]
-    return
-  }
-
-  state.customer_id = String(order.customer_id)
-  state.sales_channel_id = String(order.sales_channel_id)
-  state.internal_notes = order.internal_notes ?? ''
-  state.items = order.items?.map((item) => ({
-    product_id: String(item.product_id),
-    quantity: String(item.quantity),
-    unit_price: item.unit_price ? String(item.unit_price) : '',
-  })) ?? [{ product_id: '', quantity: '1', unit_price: '' }]
-}
-
-watch(
-  () => props.initialOrder,
-  (order) => {
-    setInitialStateFromOrder(order)
-  },
-  { immediate: true },
-)
-
 const combinedFieldErrors = computed(() => {
   const filteredServerErrors = Object.fromEntries(
     Object.entries(props.serverFieldErrors).filter(
@@ -104,6 +77,69 @@ const productSalePriceById = computed(() => {
     ),
   )
 })
+
+const submitLabel = computed(() => (props.mode === 'create' ? 'Create Order' : 'Save Changes'))
+
+const itemCount = computed(() => state.items.length)
+
+const orderTotal = computed(() => {
+  return state.items.reduce((sum, item) => {
+    const quantity = Number.parseInt(item.quantity, 10)
+    const unitPrice = Number.parseFloat(item.unit_price)
+
+    const safeQuantity = Number.isFinite(quantity) && quantity > 0 ? quantity : 0
+    const safeUnitPrice = Number.isFinite(unitPrice) && unitPrice >= 0 ? unitPrice : 0
+
+    return sum + safeQuantity * safeUnitPrice
+  }, 0)
+})
+
+watch(
+  () => props.initialOrder,
+  (order) => {
+    setInitialStateFromOrder(order)
+  },
+  { immediate: true },
+)
+
+const onSubmit = () => {
+  clearErrors()
+
+  const candidate = {
+    customer_id: Number(state.customer_id),
+    sales_channel_id: Number(state.sales_channel_id),
+    internal_notes: state.internal_notes.trim() === '' ? null : state.internal_notes.trim(),
+    items: state.items.map((item) => ({
+      product_id: Number(item.product_id),
+      quantity: Number(item.quantity),
+      unit_price: item.unit_price.trim(),
+    })),
+  }
+
+  const parsed = orderUpsertSchema.safeParse(candidate)
+  if (!parsed.success) {
+    parsed.error.issues.forEach((issue) => {
+      const key = issue.path.join('.')
+      if (!localErrors[key]) {
+        localErrors[key] = issue.message
+      }
+    })
+    return
+  }
+
+  const payload: OrderUpsertPayload = {
+    customer_id: parsed.data.customer_id,
+    sales_channel_id: parsed.data.sales_channel_id,
+    internal_notes: parsed.data.internal_notes ?? null,
+    items: parsed.data.items.map((item) => ({
+      product_id: item.product_id,
+      quantity: item.quantity,
+      unit_price: item.unit_price?.trim() ? item.unit_price.trim() : null,
+    })),
+  }
+
+  emit('submit', payload)
+}
 
 const clearErrors = () => {
   Object.keys(localErrors).forEach((key) => {
@@ -150,59 +186,23 @@ const onProductChange = (index: number, productId: string) => {
   clearFieldError('items')
 }
 
-const submitLabel = computed(() => (props.mode === 'create' ? 'Create Order' : 'Save Changes'))
-
-const itemCount = computed(() => state.items.length)
-
-const orderTotal = computed(() => {
-  return state.items.reduce((sum, item) => {
-    const quantity = Number.parseInt(item.quantity, 10)
-    const unitPrice = Number.parseFloat(item.unit_price)
-
-    const safeQuantity = Number.isFinite(quantity) && quantity > 0 ? quantity : 0
-    const safeUnitPrice = Number.isFinite(unitPrice) && unitPrice >= 0 ? unitPrice : 0
-
-    return sum + safeQuantity * safeUnitPrice
-  }, 0)
-})
-
-const onSubmit = () => {
-  clearErrors()
-
-  const candidate = {
-    customer_id: Number(state.customer_id),
-    sales_channel_id: Number(state.sales_channel_id),
-    internal_notes: state.internal_notes.trim() === '' ? null : state.internal_notes.trim(),
-    items: state.items.map((item) => ({
-      product_id: Number(item.product_id),
-      quantity: Number(item.quantity),
-      unit_price: item.unit_price.trim(),
-    })),
-  }
-
-  const parsed = orderUpsertSchema.safeParse(candidate)
-  if (!parsed.success) {
-    parsed.error.issues.forEach((issue) => {
-      const key = issue.path.join('.')
-      if (!localErrors[key]) {
-        localErrors[key] = issue.message
-      }
-    })
+function setInitialStateFromOrder(order: Order | null) {
+  if (!order) {
+    state.customer_id = ''
+    state.sales_channel_id = ''
+    state.internal_notes = ''
+    state.items = [{ product_id: '', quantity: '1', unit_price: '' }]
     return
   }
 
-  const payload: OrderUpsertPayload = {
-    customer_id: parsed.data.customer_id,
-    sales_channel_id: parsed.data.sales_channel_id,
-    internal_notes: parsed.data.internal_notes ?? null,
-    items: parsed.data.items.map((item) => ({
-      product_id: item.product_id,
-      quantity: item.quantity,
-      unit_price: item.unit_price?.trim() ? item.unit_price.trim() : null,
-    })),
-  }
-
-  emit('submit', payload)
+  state.customer_id = String(order.customer_id)
+  state.sales_channel_id = String(order.sales_channel_id)
+  state.internal_notes = order.internal_notes ?? ''
+  state.items = order.items?.map((item) => ({
+    product_id: String(item.product_id),
+    quantity: String(item.quantity),
+    unit_price: item.unit_price ? String(item.unit_price) : '',
+  })) ?? [{ product_id: '', quantity: '1', unit_price: '' }]
 }
 </script>
 

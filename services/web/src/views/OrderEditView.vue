@@ -25,6 +25,10 @@ const route = useRoute()
 const router = useRouter()
 const { permissions } = useAuth()
 
+const fieldErrors = ref<Record<string, string>>({})
+const submitError = ref('')
+const deleteError = ref('')
+
 const orderId = computed(() => Number(route.params.id))
 const orderQuery = useOrderQuery(orderId)
 const customersQuery = useCustomersQuery(
@@ -35,10 +39,6 @@ const customersQuery = useCustomersQuery(
 const lookupQuery = useOrderCreateLookupQuery()
 const updateMutation = useUpdateOrderMutation()
 const deleteMutation = useDeleteOrderMutation()
-
-const fieldErrors = ref<Record<string, string>>({})
-const submitError = ref('')
-const deleteError = ref('')
 
 const order = computed(() => orderQuery.data.value?.data ?? null)
 const isDraftOrder = computed(() => order.value?.current_status === 'draft')
@@ -54,16 +54,6 @@ const isRefreshing = computed(
       customersQuery.isFetching.value ||
       lookupQuery.isFetching.value),
 )
-
-const mapFieldErrors = (errors?: Record<string, string[]>) => {
-  if (!errors) {
-    return {}
-  }
-
-  return Object.fromEntries(
-    Object.entries(errors).map(([key, messages]) => [key, messages?.[0] ?? 'Invalid value']),
-  )
-}
 
 const onSubmit = async (payload: OrderUpsertPayload) => {
   if (!order.value) {
@@ -99,6 +89,16 @@ const onDelete = async () => {
   } catch (error: unknown) {
     deleteError.value = normalizeApiError(error).message
   }
+}
+
+const mapFieldErrors = (errors?: Record<string, string[]>) => {
+  if (!errors) {
+    return {}
+  }
+
+  return Object.fromEntries(
+    Object.entries(errors).map(([key, messages]) => [key, messages?.[0] ?? 'Invalid value']),
+  )
 }
 </script>
 

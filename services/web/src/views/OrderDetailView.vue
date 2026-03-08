@@ -30,12 +30,12 @@ import {
 
 const route = useRoute()
 const router = useRouter()
-const orderId = computed(() => Number(route.params.id))
 const { permissions } = useAuth()
+const deleteError = ref('')
 
+const orderId = computed(() => Number(route.params.id))
 const orderQuery = useOrderQuery(orderId)
 const deleteMutation = useDeleteOrderMutation()
-const deleteError = ref('')
 const order = computed(() => orderQuery.data.value?.data)
 const isInitialLoading = useInitialLoadingGate(orderQuery.isLoading)
 const isRefreshing = computed(() => !isInitialLoading.value && orderQuery.isFetching.value)

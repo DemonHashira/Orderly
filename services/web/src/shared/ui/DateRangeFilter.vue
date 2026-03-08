@@ -42,7 +42,6 @@ const isPresetRange = (days: number): boolean => {
 
   const end = new Date()
   const start = new Date()
-  // Presets are inclusive of today (e.g. last 7 days includes today + previous 6 days).
   start.setDate(end.getDate() - (days - 1))
 
   return props.from === formatDate(start) && props.to === formatDate(end)
