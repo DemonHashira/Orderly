@@ -11,17 +11,22 @@ import type { ReturnListParams } from '@/types'
 
 export const useReturnsQuery = (
   params: MaybeRefOrGetter<ReturnListParams>,
-  options?: { enabled?: MaybeRefOrGetter<boolean> },
+  options?: {
+    enabled?: MaybeRefOrGetter<boolean>
+    keepPreviousData?: boolean
+  },
 ) => {
   const queryParams = computed(() => toValue(params))
   const isEnabled = computed(() =>
     options?.enabled === undefined ? true : Boolean(toValue(options.enabled)),
   )
+  const keepPreviousData = options?.keepPreviousData ?? false
 
   return useQuery({
     queryKey: computed(() => returnsKeys.list(queryParams.value)),
     queryFn: () => fetchReturns(queryParams.value),
     enabled: isEnabled,
+    placeholderData: keepPreviousData ? (previousData) => previousData : undefined,
   })
 }
 

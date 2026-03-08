@@ -14,7 +14,6 @@ const page = useDashboardPageData()
 const kpiCards = computed(() =>
   [
     page.baseKpiCards.value['orders-total'],
-    page.baseKpiCards.value['orders-revenue'],
     page.baseKpiCards.value['inventory-low-stock'],
     page.baseKpiCards.value['returns-total'],
   ].filter((card): card is NonNullable<typeof card> => card != null),

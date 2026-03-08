@@ -11,9 +11,14 @@ import DashboardChartsSection from '@/features/dashboard/ui/DashboardChartsSecti
 import DashboardQueuesSection from '@/features/dashboard/ui/DashboardQueuesSection.vue'
 
 const page = useDashboardPageData()
+const orderStatusCounts = computed(() => page.dashboardData.value?.orders?.by_status ?? {})
+const draftAndConfirmedBacklog = computed(
+  () => (orderStatusCounts.value.draft ?? 0) + (orderStatusCounts.value.confirmed ?? 0),
+)
+const recentRestockCandidates = computed(() => page.returnsToRestock.value.slice(0, 4))
 
 const kpiCards = computed(() => {
-  const cards = ['orders-total', 'orders-revenue', 'returns-total']
+  const cards = ['orders-total']
     .map((id) => page.baseKpiCards.value[id])
     .filter((card): card is NonNullable<typeof card> => card != null)
 
@@ -22,6 +27,18 @@ const kpiCards = computed(() => {
     title: 'Ready to Ship Queue',
     value: formatNumber(page.readyOrders.value.length),
     description: 'Orders currently waiting for logistics handoff',
+  })
+  cards.push({
+    id: 'draft-confirmed-backlog',
+    title: 'Draft + Confirmed Backlog',
+    value: formatNumber(draftAndConfirmedBacklog.value),
+    description: 'Orders still pending final preparation',
+  })
+  cards.push({
+    id: 'restock-coordination-queue',
+    title: 'Restock Coordination Queue',
+    value: formatNumber(page.returnsToRestock.value.length),
+    description: 'Restock-related returns requiring coordination',
   })
 
   return cards
@@ -32,8 +49,6 @@ const chartCards = computed(() =>
     .map((id) => page.baseChartCards.value[id])
     .filter((card): card is NonNullable<typeof card> => card != null),
 )
-
-const recentRestockCandidates = computed(() => page.returnsToRestock.value.slice(0, 3))
 
 const queueOrder = computed(() => {
   const entries: Array<
@@ -76,7 +91,34 @@ const queueOrder = computed(() => {
     <DashboardChartsSection
       :charts="chartCards"
       :has-error="Boolean(page.dashboardQuery.error.value)"
-    />
+    >
+      <template #companion>
+        <Card class="dashboard-card-interactive">
+          <CardHeader>
+            <CardTitle>Recent Restock Candidates</CardTitle>
+            <CardDescription>Recent return records that may affect replacements.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div v-if="recentRestockCandidates.length === 0" class="text-muted-foreground text-sm">
+              No recent return candidates.
+            </div>
+            <ul v-else class="space-y-2 text-sm">
+              <li
+                v-for="item in recentRestockCandidates"
+                :key="item.id"
+                class="flex justify-between gap-2"
+              >
+                <RouterLink :to="`/returns/${item.id}`" class="font-medium hover:underline">
+                  {{ item.order?.reference ?? `#${item.order_id}` }}
+                </RouterLink>
+                <span class="text-muted-foreground">{{ item.reason ?? 'No reason' }}</span>
+              </li>
+            </ul>
+            <p class="text-muted-foreground mt-3 text-xs">Showing latest 4 records.</p>
+          </CardContent>
+        </Card>
+      </template>
+    </DashboardChartsSection>
 
     <DashboardQueuesSection
       :queue-order="queueOrder"
@@ -87,44 +129,6 @@ const queueOrder = computed(() => {
       :queue-loading="page.queueLoading.value"
       :queue-errors="page.queueErrors.value"
     />
-
-    <div class="grid gap-4 xl:grid-cols-2">
-      <Card v-if="page.queuePermissions.canViewRestocks.value" class="dashboard-card-interactive">
-        <CardHeader>
-          <CardTitle>Workflow Focus</CardTitle>
-          <CardDescription>Daily handoff priorities for order operations.</CardDescription>
-        </CardHeader>
-        <CardContent class="space-y-2 text-sm">
-          <p>1. Confirm drafts and prepare ready-to-ship handoff.</p>
-          <p>2. Follow up unpaid and returned outcomes quickly.</p>
-          <p>3. Keep customer/order details clean before shipping.</p>
-        </CardContent>
-      </Card>
-
-      <Card class="dashboard-card-interactive">
-        <CardHeader>
-          <CardTitle>Recent Restock Candidates</CardTitle>
-          <CardDescription>Recent return records that may affect replacements.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div v-if="recentRestockCandidates.length === 0" class="text-muted-foreground text-sm">
-            No recent return candidates.
-          </div>
-          <ul v-else class="space-y-2 text-sm">
-            <li
-              v-for="item in recentRestockCandidates"
-              :key="item.id"
-              class="flex justify-between gap-2"
-            >
-              <RouterLink :to="`/returns/${item.id}`" class="font-medium hover:underline">
-                {{ item.order?.reference ?? `#${item.order_id}` }}
-              </RouterLink>
-              <span class="text-muted-foreground">{{ item.reason ?? 'No reason' }}</span>
-            </li>
-          </ul>
-        </CardContent>
-      </Card>
-    </div>
 
     <div v-if="page.queuePermissions.canViewOrders.value" class="flex items-center justify-end">
       <Button as-child variant="outline">

@@ -46,7 +46,7 @@ const cardMeta = computed<
   },
   'returns-to-restock': {
     title: 'Returns to Restock',
-    description: 'Returned items marked restockable.',
+    description: 'Returns with at least one restockable item.',
     to: '/returns?has_restockable=true',
   },
   'shipment-follow-up': {
@@ -65,6 +65,8 @@ const gridClass = computed(() => {
   if (props.queueOrder.length >= 2) return 'grid gap-4 xl:grid-cols-2'
   return 'grid gap-4 grid-cols-1'
 })
+
+const visibleReturnsToRestock = computed(() => props.returnsToRestock.slice(0, 5))
 </script>
 
 <template>
@@ -142,12 +144,12 @@ const gridClass = computed(() => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Order</TableHead>
-                  <TableHead>Reason</TableHead>
-                  <TableHead class="text-right">Items</TableHead>
+                  <TableHead>Return Reason</TableHead>
+                  <TableHead class="text-right">Restockable Items</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                <TableRow v-for="returnOrder in props.returnsToRestock" :key="returnOrder.id">
+                <TableRow v-for="returnOrder in visibleReturnsToRestock" :key="returnOrder.id">
                   <TableCell>
                     <RouterLink
                       :to="`/returns/${returnOrder.id}`"
@@ -157,7 +159,9 @@ const gridClass = computed(() => {
                     </RouterLink>
                   </TableCell>
                   <TableCell>{{ returnOrder.reason ?? '-' }}</TableCell>
-                  <TableCell class="text-right">{{ returnOrder.items?.length ?? 0 }}</TableCell>
+                  <TableCell class="text-right">{{
+                    returnOrder.items?.filter((item) => item.restockable).length ?? 0
+                  }}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>

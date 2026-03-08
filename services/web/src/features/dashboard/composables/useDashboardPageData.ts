@@ -56,9 +56,12 @@ export const useDashboardPageData = () => {
   const returnsQuery = useReturnsQuery(
     {
       has_restockable: true,
-      per_page: 5,
+      per_page: 12,
     },
-    { enabled: canViewRestocks },
+    {
+      enabled: canViewReturns,
+      keepPreviousData: true,
+    },
   )
 
   const stocksQuery = useInventoryStocksQuery(
@@ -216,7 +219,7 @@ export const useDashboardPageData = () => {
     const end = new Date()
     const start = new Date()
     const days = preset === 'last_7' ? 7 : 30
-    start.setDate(end.getDate() - days)
+    start.setDate(end.getDate() - (days - 1))
 
     const format = (date: Date) => {
       const year = date.getFullYear()
