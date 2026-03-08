@@ -137,4 +137,46 @@ describe('app router login guard', () => {
 
     expect(router.currentRoute.value.path).toBe('/forbidden')
   })
+
+  it('allows team management route with users.manage permission', async () => {
+    const { router, fetchMe } = await loadRouter()
+    fetchMe.mockResolvedValue({
+      user: {
+        id: 1,
+        organization_id: 1,
+        email: 'owner@example.com',
+        first_name: 'Owner',
+        middle_name: null,
+        last_name: 'User',
+        is_active: true,
+      },
+      roles: ['Owner'],
+      permissions: ['users.manage'],
+    })
+
+    await router.replace('/team')
+
+    expect(router.currentRoute.value.path).toBe('/team')
+  })
+
+  it('blocks team management route without users.manage permission', async () => {
+    const { router, fetchMe } = await loadRouter()
+    fetchMe.mockResolvedValue({
+      user: {
+        id: 1,
+        organization_id: 1,
+        email: 'limited@example.com',
+        first_name: 'Limited',
+        middle_name: null,
+        last_name: 'User',
+        is_active: true,
+      },
+      roles: ['Order Manager'],
+      permissions: ['orders.view'],
+    })
+
+    await router.replace('/team')
+
+    expect(router.currentRoute.value.path).toBe('/forbidden')
+  })
 })

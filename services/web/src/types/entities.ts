@@ -179,3 +179,24 @@ export type ProductListParams = PaginationParams &
   SearchParams & {
     is_active?: boolean
   }
+
+export type AdminUser = {
+  id: number
+  organization_id: number
+  first_name: string | null
+  middle_name: string | null
+  last_name: string | null
+  name: string
+  email: string
+  is_active: boolean
+  role: string | null
+  roles: string[]
+  created_at: string
+  updated_at: string
+}
+
+export type AdminRole = {
+  name: string
+}
+
+export type AdminUsersListParams = PaginationParams & SearchParams

@@ -78,6 +78,14 @@ export const NAV_ITEMS: NavItem[] = [
     requiredPermission: 'customers.view',
     group: 'catalog',
   },
+  {
+    id: 'team',
+    label: 'Team',
+    to: '/team',
+    icon: Users,
+    requiredPermission: 'users.manage',
+    group: 'operations',
+  },
 ]
 
 export const NAV_GROUP_LABELS: Record<NavGroup, string> = {

@@ -12,6 +12,11 @@ describe('navigation config', () => {
     expect(items.map((item) => item.id)).toEqual(['dashboard', 'orders'])
   })
 
+  it('includes team when users.manage is present', () => {
+    const items = filterNavByPermissions(NAV_ITEMS, ['users.manage'])
+    expect(items.map((item) => item.id)).toEqual(['team'])
+  })
+
   it('returns no items when user has no module permissions', () => {
     const items = filterNavByPermissions(NAV_ITEMS, [])
     expect(items).toEqual([])

@@ -56,6 +56,9 @@ const listUiStore = useListUiStateStore()
 const logoutMutation = useLogoutMutation()
 const { permissions, roles, user } = useAuth()
 
+if (typeof window !== 'undefined') {
+}
+
 const visibleItems = computed(() => filterNavByPermissions(NAV_ITEMS, permissions.value))
 
 const groupedItems = computed(() => {
@@ -70,6 +73,8 @@ const groupedItems = computed(() => {
 })
 
 const pageTitle = computed(() => findNavLabelByPath(route.path))
+const primaryRole = computed(() => roles.value[0] ?? 'No role')
+const roleSummary = computed(() => (roles.value.length > 0 ? roles.value.join(', ') : 'No role'))
 const dashboardVariant = computed(() =>
   resolveDashboardVariant({
     permissions: permissions.value,
@@ -78,6 +83,7 @@ const dashboardVariant = computed(() =>
 )
 
 const quickActions = computed(() => {
+  // Recompute quick actions when route changes so session-backed targets stay fresh.
   const _currentRouteKey = route.fullPath
   void _currentRouteKey
   const actions = getQuickActionsByPermissions(permissions.value)
@@ -197,7 +203,10 @@ const onGoToChangePassword = async () => {
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" class="w-56">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuLabel class="pb-0">My Account</DropdownMenuLabel>
+                <DropdownMenuLabel class="text-muted-foreground text-xs font-normal pt-0">
+                  Logged in as {{ roleSummary }}
+                </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem @click="onGoToChangePassword">
                   <KeyRound class="mr-2 size-4" />
@@ -260,6 +269,12 @@ const onGoToChangePassword = async () => {
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
+
+        <span
+          class="text-muted-foreground hidden rounded-md border px-2 py-1 text-xs font-medium md:inline-flex"
+        >
+          {{ primaryRole }}
+        </span>
 
         <div class="ml-auto hidden items-center gap-2 lg:flex">
           <Button

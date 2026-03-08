@@ -55,3 +55,9 @@ export const lookupKeys = {
   all: ['lookups'] as const,
   orderCreate: () => [...lookupKeys.all, 'order-create'] as const,
 }
+
+export const adminUsersKeys = {
+  all: ['admin-users'] as const,
+  list: (params: Record<string, unknown>) => [...adminUsersKeys.all, 'list', params] as const,
+  roles: () => [...adminUsersKeys.all, 'roles'] as const,
+}

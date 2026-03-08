@@ -18,6 +18,7 @@ import ProductsView from '@/views/ProductsView.vue'
 import ProductDetailView from '@/views/ProductDetailView.vue'
 import CustomersView from '@/views/CustomersView.vue'
 import CustomerDetailView from '@/views/CustomerDetailView.vue'
+import TeamManagementView from '@/views/TeamManagementView.vue'
 import ForbiddenView from '@/views/ForbiddenView.vue'
 import AccountSecurityView from '@/views/AccountSecurityView.vue'
 import '@/app/router/route-meta'
@@ -143,6 +144,12 @@ const router = createRouter({
           name: 'customer-detail',
           component: CustomerDetailView,
           meta: { permission: 'customers.view' },
+        },
+        {
+          path: 'team',
+          name: 'team-management',
+          component: TeamManagementView,
+          meta: { permission: 'users.manage' },
         },
       ],
     },
