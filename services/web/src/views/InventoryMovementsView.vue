@@ -78,8 +78,8 @@ watch(
       const persisted = listUiStore.toQuery(listModule, BASIC_LIST_FIELDS)
       if (Object.keys(persisted).length > 0) {
         void router.replace({ query: persisted })
+        return
       }
-      return
     }
 
     isSyncingFromRoute.value = true

@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { isPositiveIntegerString } from '@/lib/utils'
 
 export type ListModuleKey =
   | 'orders'
@@ -8,6 +9,7 @@ export type ListModuleKey =
   | 'customers'
   | 'inventory_stocks'
   | 'inventory_movements'
+  | 'team_users'
 
 export type ListUiField =
   | 'q'
@@ -49,8 +51,7 @@ const parsePositiveInteger = (value: unknown, fallback: number) => {
     return fallback
   }
 
-  const parsed = Number(raw)
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback
+  return isPositiveIntegerString(raw) ? Number(raw) : fallback
 }
 
 const createDefaultState = (module: ListModuleKey): ListUiState => ({
@@ -71,6 +72,7 @@ const createInitialModules = (): Record<ListModuleKey, ListUiState> => ({
   customers: createDefaultState('customers'),
   inventory_stocks: createDefaultState('inventory_stocks'),
   inventory_movements: createDefaultState('inventory_movements'),
+  team_users: createDefaultState('team_users'),
 })
 
 const defaultFields: ListUiField[] = [
@@ -99,6 +101,10 @@ export const useListUiStateStore = defineStore('list-ui-state', {
   state: () => ({
     modules: createInitialModules(),
   }),
+  persist: {
+    storage: sessionStorage,
+    pick: ['modules'],
+  },
 
   actions: {
     setState(module: ListModuleKey, patch: Partial<ListUiState>) {

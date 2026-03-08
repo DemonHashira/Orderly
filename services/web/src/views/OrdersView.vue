@@ -54,7 +54,9 @@ import type { OrdersTableRow } from '@/features/orders/ui/orders-table-columns'
 import OrdersDataTable from '@/features/orders/ui/OrdersDataTable.vue'
 import type { OrderUpsertPayload } from '@/features/orders/types'
 import { ORDER_STATUS_OPTIONS } from '@/features/orders/types'
+import type { Order } from '@/types'
 import { formatCurrency, formatDateTime } from '@/lib/formatters'
+import { isPositiveIntegerString } from '@/lib/utils'
 import { useDebouncedRef } from '@/shared/composables/useDebouncedRef'
 import { useInitialLoadingGate } from '@/shared/composables/useInitialLoadingGate'
 import { normalizeApiError } from '@/shared/api/errors'
@@ -76,6 +78,17 @@ const route = useRoute()
 const router = useRouter()
 const listUiStore = useListUiStateStore()
 const listModule = 'orders' as const
+const validStatuses = new Set<string>(ORDER_STATUS_OPTIONS)
+
+const pendingAction = ref<{ type: PendingActionType; orderId: number } | null>(null)
+const mutationError = ref('')
+const createFieldErrors = ref<Record<string, string>>({})
+const createSubmitError = ref('')
+const editFieldErrors = ref<Record<string, string>>({})
+const editSubmitError = ref('')
+const isSyncingFromRoute = ref(false)
+const persistedDetailOrder = ref<Order | null>(null)
+const persistedEditOrder = ref<Order | null>(null)
 
 const page = computed({
   get: () => listUiStore.modules[listModule].page,
@@ -109,24 +122,12 @@ const createdTo = computed<string>({
   set: (value) => listUiStore.setState(listModule, { created_to: value }),
 })
 
-const pendingAction = ref<{ type: PendingActionType; orderId: number } | null>(null)
-const mutationError = ref('')
-const createFieldErrors = ref<Record<string, string>>({})
-const createSubmitError = ref('')
-const editFieldErrors = ref<Record<string, string>>({})
-const editSubmitError = ref('')
-
 const canCreate = computed(() => permissions.value.includes('orders.create'))
 const canEditDraft = computed(() => permissions.value.includes('orders.update'))
 const canDeleteDraft = computed(() => permissions.value.includes('orders.delete'))
 const canConfirm = computed(() => permissions.value.includes('orders.status.confirm'))
 const canReadyToShip = computed(() => permissions.value.includes('orders.status.ready_to_ship'))
 const canCancel = computed(() => permissions.value.includes('orders.status.cancel'))
-const validStatuses = new Set<string>(ORDER_STATUS_OPTIONS)
-const isPositiveIntegerString = (value: string) => {
-  const parsed = Number(value)
-  return Number.isInteger(parsed) && parsed > 0
-}
 
 const customersQuery = useCustomersQuery(
   computed(() => ({
@@ -157,9 +158,6 @@ const cancelMutation = useCancelOrderMutation()
 const deleteMutation = useDeleteOrderMutation()
 const createMutation = useCreateOrderMutation()
 const updateMutation = useUpdateOrderMutation()
-
-const isSyncingFromRoute = ref(false)
-
 const isCreateRoute = computed(() => route.name === 'order-create')
 const isDetailRoute = computed(() => route.name === 'order-detail')
 const isEditRoute = computed(() => route.name === 'order-edit')
@@ -169,74 +167,9 @@ const detailOrder = computed(() => detailOrderQuery.data.value?.data ?? null)
 const editOrderId = computed(() => Number(route.params.id))
 const editOrderQuery = useOrderQuery(editOrderId)
 const editOrder = computed(() => editOrderQuery.data.value?.data ?? null)
-const isEditDraftOrder = computed(() => editOrder.value?.current_status === 'draft')
-
-watch(
-  () => route.query,
-  (query) => {
-    const normalizedQuery = query as Record<string, unknown>
-    if (!listUiStore.hasRelevantQuery(normalizedQuery, ORDERS_LIST_FIELDS)) {
-      const persisted = listUiStore.toQuery(listModule, ORDERS_LIST_FIELDS)
-      if (Object.keys(persisted).length > 0) {
-        void router.replace({ query: persisted })
-      }
-      return
-    }
-
-    isSyncingFromRoute.value = true
-    listUiStore.hydrateFromQuery(listModule, normalizedQuery, ORDERS_LIST_FIELDS, {
-      status: (value) => validStatuses.has(value),
-      sales_channel_id: isPositiveIntegerString,
-    })
-    void nextTick().then(() => {
-      isSyncingFromRoute.value = false
-    })
-  },
-  { immediate: true },
-)
-
-watch([debouncedSearch, selectedStatus, selectedSalesChannelId, createdFrom, createdTo], () => {
-  if (!isSyncingFromRoute.value) {
-    page.value = 1
-  }
-})
-
-watch(perPage, () => {
-  if (!isSyncingFromRoute.value) {
-    page.value = 1
-  }
-})
-
-watch(
-  [debouncedSearch, selectedStatus, selectedSalesChannelId, createdFrom, createdTo, page, perPage],
-  () => {
-    if (isSyncingFromRoute.value) {
-      return
-    }
-
-    const nextQuery = {
-      ...listUiStore.toQuery(listModule, ORDERS_LIST_FIELDS),
-      ...(debouncedSearch.value ? { q: debouncedSearch.value } : {}),
-    }
-    const currentQuery = listUiStore.normalizeQuery(
-      listModule,
-      route.query as Record<string, unknown>,
-      ORDERS_LIST_FIELDS,
-      {
-        status: (value) => validStatuses.has(value),
-        sales_channel_id: isPositiveIntegerString,
-      },
-    )
-
-    if (JSON.stringify(nextQuery) === JSON.stringify(currentQuery)) {
-      return
-    }
-
-    void router.replace({
-      query: nextQuery,
-    })
-  },
-)
+const detailOrderForDialog = computed(() => detailOrder.value ?? persistedDetailOrder.value)
+const editOrderForDialog = computed(() => editOrder.value ?? persistedEditOrder.value)
+const isEditDraftOrder = computed(() => editOrderForDialog.value?.current_status === 'draft')
 
 const isActionMutationPending = computed(() => {
   const isPending = (mutation: unknown) => {
@@ -346,6 +279,93 @@ const actionDialogCopy = computed(() => {
     confirmLabel: 'Delete Draft',
   }
 })
+
+watch(
+  detailOrder,
+  (order) => {
+    if (order) {
+      persistedDetailOrder.value = order
+    }
+  },
+  { immediate: true },
+)
+
+watch(
+  editOrder,
+  (order) => {
+    if (order) {
+      persistedEditOrder.value = order
+    }
+  },
+  { immediate: true },
+)
+
+watch(
+  () => route.query,
+  (query) => {
+    const normalizedQuery = query as Record<string, unknown>
+    if (!listUiStore.hasRelevantQuery(normalizedQuery, ORDERS_LIST_FIELDS)) {
+      const persisted = listUiStore.toQuery(listModule, ORDERS_LIST_FIELDS)
+      if (Object.keys(persisted).length > 0) {
+        void router.replace({ query: persisted })
+        return
+      }
+    }
+
+    isSyncingFromRoute.value = true
+    listUiStore.hydrateFromQuery(listModule, normalizedQuery, ORDERS_LIST_FIELDS, {
+      status: (value) => validStatuses.has(value),
+      sales_channel_id: isPositiveIntegerString,
+    })
+    void nextTick().then(() => {
+      isSyncingFromRoute.value = false
+    })
+  },
+  { immediate: true },
+)
+
+watch([debouncedSearch, selectedStatus, selectedSalesChannelId, createdFrom, createdTo], () => {
+  if (!isSyncingFromRoute.value) {
+    page.value = 1
+  }
+})
+
+watch(perPage, () => {
+  if (!isSyncingFromRoute.value) {
+    page.value = 1
+  }
+})
+
+watch(
+  [debouncedSearch, selectedStatus, selectedSalesChannelId, createdFrom, createdTo, page, perPage],
+  () => {
+    if (isSyncingFromRoute.value) {
+      return
+    }
+
+    const nextQuery = {
+      ...listUiStore.toQuery(listModule, ORDERS_LIST_FIELDS),
+      ...(debouncedSearch.value ? { q: debouncedSearch.value } : {}),
+    }
+    const currentQuery = listUiStore.normalizeQuery(
+      listModule,
+      route.query as Record<string, unknown>,
+      ORDERS_LIST_FIELDS,
+      {
+        status: (value) => validStatuses.has(value),
+        sales_channel_id: isPositiveIntegerString,
+      },
+    )
+
+    if (JSON.stringify(nextQuery) === JSON.stringify(currentQuery)) {
+      return
+    }
+
+    void router.replace({
+      query: nextQuery,
+    })
+  },
+)
 
 const openActionDialog = (type: PendingActionType, orderId: number) => {
   mutationError.value = ''
@@ -634,32 +654,35 @@ const closeOrderDialog = async () => {
         >
           Loading order...
         </div>
-        <template v-else-if="detailOrder">
+        <template v-else-if="detailOrderForDialog">
           <div class="grid gap-4 md:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>{{ detailOrder.reference }}</CardTitle>
+                <CardTitle>{{ detailOrderForDialog.reference }}</CardTitle>
                 <CardDescription
-                  >Created {{ formatDateTime(detailOrder.created_at) }}</CardDescription
+                  >Created {{ formatDateTime(detailOrderForDialog.created_at) }}</CardDescription
                 >
               </CardHeader>
               <CardContent class="space-y-2 text-sm">
                 <div class="inline-flex items-center gap-2">
                   <span class="font-medium">Status:</span>
-                  <StatusBadge :status="detailOrder.current_status" />
+                  <StatusBadge :status="detailOrderForDialog.current_status" />
                 </div>
-                <p><span class="font-medium">Customer ID:</span> {{ detailOrder.customer_id }}</p>
+                <p>
+                  <span class="font-medium">Customer ID:</span>
+                  {{ detailOrderForDialog.customer_id }}
+                </p>
                 <p>
                   <span class="font-medium">Sales Channel ID:</span>
-                  {{ detailOrder.sales_channel_id }}
+                  {{ detailOrderForDialog.sales_channel_id }}
                 </p>
                 <p>
                   <span class="font-medium">Total:</span>
-                  {{ formatCurrency(detailOrder.total_amount) }}
+                  {{ formatCurrency(detailOrderForDialog.total_amount) }}
                 </p>
                 <p>
                   <span class="font-medium">Internal notes:</span>
-                  {{ detailOrder.internal_notes ?? '-' }}
+                  {{ detailOrderForDialog.internal_notes ?? '-' }}
                 </p>
               </CardContent>
             </Card>
@@ -670,14 +693,17 @@ const closeOrderDialog = async () => {
                 <CardDescription>Latest status changes.</CardDescription>
               </CardHeader>
               <CardContent
-                v-if="!detailOrder.status_history || detailOrder.status_history.length === 0"
+                v-if="
+                  !detailOrderForDialog.status_history ||
+                  detailOrderForDialog.status_history.length === 0
+                "
               >
                 <p class="text-sm text-muted-foreground">No transitions recorded yet.</p>
               </CardContent>
               <CardContent v-else>
                 <ul class="space-y-2 text-sm">
                   <li
-                    v-for="status in detailOrder.status_history"
+                    v-for="status in detailOrderForDialog.status_history"
                     :key="status.id"
                     class="border-b pb-2 last:border-b-0"
                   >
@@ -709,7 +735,7 @@ const closeOrderDialog = async () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  <TableRow v-for="item in detailOrder.items ?? []" :key="item.id">
+                  <TableRow v-for="item in detailOrderForDialog.items ?? []" :key="item.id">
                     <TableCell>{{ item.product_id }}</TableCell>
                     <TableCell class="text-right">{{ item.quantity }}</TableCell>
                     <TableCell class="text-right">{{ formatCurrency(item.unit_price) }}</TableCell>
@@ -741,7 +767,7 @@ const closeOrderDialog = async () => {
         <div v-else-if="isEditDialogLoading" class="py-8 text-center text-sm text-muted-foreground">
           Loading form...
         </div>
-        <template v-else-if="editOrder">
+        <template v-else-if="editOrderForDialog">
           <div
             v-if="!isEditDraftOrder"
             class="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900"
@@ -750,7 +776,7 @@ const closeOrderDialog = async () => {
           </div>
           <OrderForm
             mode="edit"
-            :initial-order="editOrder"
+            :initial-order="editOrderForDialog"
             :customers="customersQuery.data.value?.data ?? []"
             :lookups="lookupQuery.data.value?.data ?? null"
             :is-submitting="updateMutation.isPending.value"

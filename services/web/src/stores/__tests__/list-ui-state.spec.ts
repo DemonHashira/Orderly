@@ -1,10 +1,26 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createApp, nextTick } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
+import { createPersistedState } from 'pinia-plugin-persistedstate'
 import { useListUiStateStore } from '../list-ui-state'
+
+const buildTestingPinia = () => {
+  const pinia = createPinia()
+  pinia.use(
+    createPersistedState({
+      storage: window.sessionStorage,
+    }),
+  )
+  const app = createApp({})
+  app.use(pinia)
+
+  return pinia
+}
 
 describe('useListUiStateStore', () => {
   beforeEach(() => {
-    setActivePinia(createPinia())
+    setActivePinia(buildTestingPinia())
+    window.sessionStorage.clear()
     vi.restoreAllMocks()
   })
 
@@ -38,12 +54,43 @@ describe('useListUiStateStore', () => {
     })
   })
 
-  it('resets a module back to defaults', () => {
+  it('rehydrates persisted module state from session storage', async () => {
     const store = useListUiStateStore()
-    store.setState('shipments', { q: 'track', page: 3, per_page: 30 })
-    store.reset('shipments')
-    expect(store.modules.shipments.q).toBe('')
-    expect(store.modules.shipments.page).toBe(1)
-    expect(store.modules.shipments.per_page).toBe(15)
+    store.setState('shipments', { q: 'track', page: 3, per_page: 25 })
+    await nextTick()
+
+    setActivePinia(buildTestingPinia())
+    const nextStore = useListUiStateStore()
+    expect(nextStore.modules.shipments.q).toBe('track')
+    expect(nextStore.modules.shipments.page).toBe(3)
+    expect(nextStore.modules.shipments.per_page).toBe(25)
+  })
+
+  it('persists reset state for a module', () => {
+    const store = useListUiStateStore()
+    store.setState('products', { q: 'milk', page: 4, per_page: 25 })
+    store.reset('products')
+
+    setActivePinia(buildTestingPinia())
+    const nextStore = useListUiStateStore()
+    expect(nextStore.modules.products.q).toBe('')
+    expect(nextStore.modules.products.page).toBe(1)
+    expect(nextStore.modules.products.per_page).toBe(15)
+  })
+
+  it('keeps query params as precedence over persisted fallback', () => {
+    const store = useListUiStateStore()
+    store.setState('team_users', { q: 'persisted', page: 7 })
+
+    setActivePinia(buildTestingPinia())
+    const nextStore = useListUiStateStore()
+    nextStore.hydrateFromQuery('team_users', { q: 'from-query', page: '2' }, ['q', 'page'])
+
+    expect(nextStore.modules.team_users.q).toBe('from-query')
+    expect(nextStore.modules.team_users.page).toBe(2)
+    expect(nextStore.toQuery('team_users', ['q', 'page'])).toEqual({
+      q: 'from-query',
+      page: '2',
+    })
   })
 })
