@@ -2,12 +2,14 @@ import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { dashboardKeys, inventoryKeys, returnsKeys } from '@/lib/query-keys'
 import {
+  addReturnItem,
   fetchReturn,
   fetchReturnByOrder,
   fetchReturns,
   restockReturn,
 } from '@/features/returns/api/returns.api'
 import type { ReturnListParams } from '@/types'
+import type { AddReturnItemMutationPayload } from '@/features/returns/types'
 
 export const useReturnsQuery = (
   params: MaybeRefOrGetter<ReturnListParams>,
@@ -52,6 +54,21 @@ export const useRestockReturnMutation = () => {
     onSuccess: (_, returnId) => {
       void queryClient.invalidateQueries({ queryKey: returnsKeys.all })
       void queryClient.invalidateQueries({ queryKey: returnsKeys.detail(returnId) })
+      void queryClient.invalidateQueries({ queryKey: inventoryKeys.all })
+      void queryClient.invalidateQueries({ queryKey: dashboardKeys.all })
+    },
+  })
+}
+
+export const useAddReturnItemMutation = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, payload }: AddReturnItemMutationPayload) => addReturnItem(id, payload),
+    onSuccess: (response, variables) => {
+      void queryClient.invalidateQueries({ queryKey: returnsKeys.all })
+      void queryClient.invalidateQueries({ queryKey: returnsKeys.detail(variables.id) })
+      void queryClient.invalidateQueries({ queryKey: returnsKeys.byOrder(response.data.order_id) })
       void queryClient.invalidateQueries({ queryKey: inventoryKeys.all })
       void queryClient.invalidateQueries({ queryKey: dashboardKeys.all })
     },

@@ -1,7 +1,8 @@
 import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { dashboardKeys, shipmentsKeys } from '@/lib/query-keys'
+import { dashboardKeys, ordersKeys, shipmentsKeys } from '@/lib/query-keys'
 import {
+  createShipment,
   fetchShipment,
   fetchShipments,
   markShipmentDelivered,
@@ -9,6 +10,7 @@ import {
   markShipmentUnpaid,
 } from '@/features/shipments/api/shipments.api'
 import type { ShipmentListParams } from '@/types'
+import type { CreateShipmentMutationPayload } from '@/features/shipments/types'
 
 export const useShipmentsQuery = (
   params: MaybeRefOrGetter<ShipmentListParams>,
@@ -23,6 +25,7 @@ export const useShipmentsQuery = (
     queryKey: computed(() => shipmentsKeys.list(queryParams.value)),
     queryFn: () => fetchShipments(queryParams.value),
     enabled: isEnabled,
+    placeholderData: (previousData) => previousData,
   })
 }
 
@@ -34,6 +37,22 @@ export const useShipmentQuery = (id: MaybeRefOrGetter<number>) => {
   })
 }
 
+export const useCreateShipmentMutation = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ orderId, payload }: CreateShipmentMutationPayload) =>
+      createShipment(orderId, payload),
+    onSuccess: (response, variables) => {
+      void queryClient.invalidateQueries({ queryKey: shipmentsKeys.all })
+      void queryClient.invalidateQueries({ queryKey: shipmentsKeys.detail(response.data.id) })
+      void queryClient.invalidateQueries({ queryKey: ordersKeys.all })
+      void queryClient.invalidateQueries({ queryKey: ordersKeys.detail(variables.orderId) })
+      void queryClient.invalidateQueries({ queryKey: dashboardKeys.all })
+    },
+  })
+}
+
 const useShipmentStatusMutation = (mutationFn: (id: number) => Promise<unknown>) => {
   const queryClient = useQueryClient()
   return useMutation({
@@ -41,6 +60,7 @@ const useShipmentStatusMutation = (mutationFn: (id: number) => Promise<unknown>)
     onSuccess: (_, shipmentId) => {
       void queryClient.invalidateQueries({ queryKey: shipmentsKeys.all })
       void queryClient.invalidateQueries({ queryKey: shipmentsKeys.detail(shipmentId) })
+      void queryClient.invalidateQueries({ queryKey: ordersKeys.all })
       void queryClient.invalidateQueries({ queryKey: dashboardKeys.all })
     },
   })

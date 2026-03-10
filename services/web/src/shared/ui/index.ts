@@ -1,6 +1,8 @@
 export { default as ApiErrorAlert } from './ApiErrorAlert.vue'
 export { default as ConfirmActionDialog } from './ConfirmActionDialog.vue'
+export { default as CourierComboboxInput } from './CourierComboboxInput.vue'
 export { default as DateRangeFilter } from './DateRangeFilter.vue'
+export { default as DatePickerInput } from './DatePickerInput.vue'
 export { default as DebouncedSearchInput } from './DebouncedSearchInput.vue'
 export { default as EmptyStateCard } from './EmptyStateCard.vue'
 export { default as PageInitialSkeleton } from './PageInitialSkeleton.vue'

@@ -1,6 +1,7 @@
 import { apiClient } from '@/shared/api/client'
 import { compactParams } from '@/shared/api/params'
 import type { PaginatedResponse, Shipment, ShipmentListParams } from '@/types'
+import type { CreateShipmentPayload } from '@/features/shipments/types'
 
 export const fetchShipments = async (
   params: ShipmentListParams = {},
@@ -13,6 +14,17 @@ export const fetchShipments = async (
 
 export const fetchShipment = async (id: number): Promise<{ data: Shipment }> => {
   const { data } = await apiClient.get<{ data: Shipment }>(`/api/shipments/${id}`)
+  return data
+}
+
+export const createShipment = async (
+  orderId: number,
+  payload: CreateShipmentPayload,
+): Promise<{ data: Shipment }> => {
+  const { data } = await apiClient.post<{ data: Shipment }>(
+    `/api/orders/${orderId}/shipments`,
+    payload,
+  )
   return data
 }
 

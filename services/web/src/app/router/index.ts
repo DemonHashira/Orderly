@@ -8,9 +8,7 @@ import LoginView from '@/views/LoginView.vue'
 import DashboardView from '@/views/DashboardView.vue'
 import OrdersView from '@/views/OrdersView.vue'
 import ShipmentsView from '@/views/ShipmentsView.vue'
-import ShipmentDetailView from '@/views/ShipmentDetailView.vue'
 import ReturnsView from '@/views/ReturnsView.vue'
-import ReturnDetailView from '@/views/ReturnDetailView.vue'
 import ReturnByOrderView from '@/views/ReturnByOrderView.vue'
 import InventoryStocksView from '@/views/InventoryStocksView.vue'
 import InventoryMovementsView from '@/views/InventoryMovementsView.vue'
@@ -83,25 +81,25 @@ const router = createRouter({
           path: 'shipments',
           name: 'shipments',
           component: ShipmentsView,
-          meta: { permission: 'shipments.view' },
+          meta: { permission: 'shipments.view', viewKey: 'shipments' },
         },
         {
           path: 'shipments/:id',
           name: 'shipment-detail',
-          component: ShipmentDetailView,
-          meta: { permission: 'shipments.view' },
+          component: ShipmentsView,
+          meta: { permission: 'shipments.view', viewKey: 'shipments' },
         },
         {
           path: 'returns',
           name: 'returns',
           component: ReturnsView,
-          meta: { permission: 'returns.view' },
+          meta: { permission: 'returns.view', viewKey: 'returns' },
         },
         {
           path: 'returns/:id',
           name: 'return-detail',
-          component: ReturnDetailView,
-          meta: { permission: 'returns.view' },
+          component: ReturnsView,
+          meta: { permission: 'returns.view', viewKey: 'returns' },
         },
         {
           path: 'orders/:id/return',
