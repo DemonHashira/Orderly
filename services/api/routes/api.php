@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AdminUserManagementController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\DashboardController;
@@ -69,6 +70,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/inventory/movements', [InventoryMovementController::class, 'index']);
     Route::post('/inventory/movements', [InventoryMovementController::class, 'store']);
     Route::get('/lookups/order-create', [LookupController::class, 'orderCreate']);
+    Route::get('/admin/users', [AdminUserManagementController::class, 'indexUsers']);
+    Route::post('/admin/users', [AdminUserManagementController::class, 'storeUser']);
+    Route::patch('/admin/users/{user}', [AdminUserManagementController::class, 'updateUser']);
+    Route::patch('/admin/users/{user}/status', [AdminUserManagementController::class, 'updateUserStatus']);
+    Route::get('/admin/roles', [AdminUserManagementController::class, 'indexRoles']);
+    Route::patch('/admin/users/{user}/role', [AdminUserManagementController::class, 'updateUserRole']);
 
     Route::get('/reports/orders/summary', [ReportController::class, 'ordersSummary']);
     Route::get('/reports/inventory/summary', [ReportController::class, 'inventorySummary']);

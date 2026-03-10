@@ -41,6 +41,8 @@ final class AuthServiceProvider extends ServiceProvider
         Gate::define('reports.returns.view', fn (User $user): bool => $this->hasPermission($user, 'reports.returns.view'));
         Gate::define('products.import', fn (User $user): bool => $this->hasPermission($user, 'products.import'));
         Gate::define('products.export', fn (User $user): bool => $this->hasPermission($user, 'products.export'));
+        Gate::define('users.manage', fn (User $user): bool => $this->hasPermission($user, 'users.manage'));
+        Gate::define('roles.manage', fn (User $user): bool => $this->hasPermission($user, 'roles.manage'));
     }
 
     private function hasPermission(User $user, string $permission): bool

@@ -109,8 +109,15 @@ class DemoOrderSeeder extends Seeder
 
                 // Shipping and inventory
                 if (in_array($scenario['status'], ['shipped', 'delivered', 'returned', 'unpaid'], true)) {
+                    $shippedAt = $createdAt->copy()->addDays(3);
                     $shipmentFactory->createFor($order, $scenario['status'], $createdAt);
-                    $inventoryLedger->applySale($org->id, $logistics->id, $order->id, $items);
+                    $inventoryLedger->applySale(
+                        organizationId: $org->id,
+                        performedByUserId: $logistics->id,
+                        orderId: $order->id,
+                        items: $items,
+                        occurredAt: $shippedAt,
+                    );
                 } else {
                     $inventoryLedger->reserveItems($org->id, $items);
                 }
@@ -131,6 +138,7 @@ class DemoOrderSeeder extends Seeder
                         performedByUserId: $inventory->id,
                         returnOrderId: $returnOrder->id,
                         returnItems: $returnItems,
+                        occurredAt: $returnedAt,
                     );
                 }
             });

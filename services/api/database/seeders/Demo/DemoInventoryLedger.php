@@ -6,6 +6,7 @@ use App\Models\InventoryMovement;
 use App\Models\InventoryStock;
 use App\Models\Order;
 use App\Models\OrderItem;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -27,12 +28,17 @@ class DemoInventoryLedger
     }
 
     // Apply sale when order ships
-    public function applySale(int $organizationId, ?int $performedByUserId, int $orderId, Collection $items): void
-    {
+    public function applySale(
+        int $organizationId,
+        ?int $performedByUserId,
+        int $orderId,
+        Collection $items,
+        Carbon $occurredAt,
+    ): void {
         foreach ($items as $item) {
             $qty = (int) $item->quantity;
 
-            InventoryMovement::query()->create([
+            $movement = InventoryMovement::query()->create([
                 'organization_id' => $organizationId,
                 'product_id' => $item->product_id,
                 'performed_by_user_id' => $performedByUserId,
@@ -43,11 +49,19 @@ class DemoInventoryLedger
                 'reference_id' => $orderId,
             ]);
 
+            $movement->forceFill([
+                'created_at' => $occurredAt,
+                'updated_at' => $occurredAt,
+            ])->save();
+
             InventoryStock::query()
                 ->where('organization_id', $organizationId)
                 ->where('product_id', $item->product_id)
                 ->update([
-                    'qty_on_hand' => DB::raw('GREATEST(qty_on_hand - '.$qty.', 0)'),
+                    'qty_on_hand' => DB::raw(
+                        'CASE WHEN qty_on_hand - '.$qty.' < 0 THEN 0 '.
+                        'ELSE qty_on_hand - '.$qty.' END'
+                    ),
                 ]);
         }
     }
@@ -58,12 +72,13 @@ class DemoInventoryLedger
         ?int $performedByUserId,
         int $returnOrderId,
         Collection $returnItems,
+        Carbon $occurredAt,
     ): void {
         foreach ($returnItems as $returnItem) {
             $qty = (int) $returnItem->quantity;
             $restockable = (bool) $returnItem->restockable;
 
-            InventoryMovement::query()->create([
+            $movement = InventoryMovement::query()->create([
                 'organization_id' => $organizationId,
                 'product_id' => $returnItem->product_id,
                 'performed_by_user_id' => $performedByUserId,
@@ -73,6 +88,11 @@ class DemoInventoryLedger
                 'reference_type' => 'Return',
                 'reference_id' => $returnOrderId,
             ]);
+
+            $movement->forceFill([
+                'created_at' => $occurredAt,
+                'updated_at' => $occurredAt,
+            ])->save();
 
             if ($restockable) {
                 InventoryStock::query()

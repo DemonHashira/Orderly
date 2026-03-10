@@ -4,7 +4,7 @@ namespace Database\Seeders\Demo;
 
 class DemoOrderScenarios
 {
-    private const TARGET_ORDERS = 120;
+    private const int TARGET_ORDERS = 220;
 
     public static function make(array $channelCodes): array
     {
@@ -28,23 +28,27 @@ class DemoOrderScenarios
         for ($i = count($scenarios) + 1; $i <= self::TARGET_ORDERS; $i++) {
             $status = self::pickWeighted(
                 [
-                    'delivered' => 34,
-                    'shipped' => 18,
+                    'delivered' => 28,
+                    'shipped' => 16,
                     'ready_to_ship' => 14,
                     'confirmed' => 12,
                     'draft' => 10,
-                    'cancelled' => 6,
-                    'returned' => 4,
-                    'unpaid' => 2,
+                    'cancelled' => 8,
+                    'returned' => 8,
+                    'unpaid' => 4,
                 ],
             );
             $channel = self::pickWeightedChannel($channelCodes);
+
+            $daysAgo = in_array($status, ['returned', 'unpaid'], true)
+                ? mt_rand(1, 21)
+                : self::pickDaysAgo();
 
             $scenario = [
                 'reference' => sprintf('OC-2026-%04d', $i),
                 'status' => $status,
                 'channel' => $channel,
-                'days_ago' => self::pickDaysAgo(),
+                'days_ago' => $daysAgo,
                 'items' => mt_rand(1, 4),
             ];
 
