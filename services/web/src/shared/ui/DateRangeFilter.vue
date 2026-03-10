@@ -124,7 +124,7 @@ const formatDisplayDate = (value?: string) => {
             : undefined
       "
     >
-      <SelectTrigger class="w-[170px]">
+      <SelectTrigger class="w-[170px] shrink-0">
         <SelectValue :placeholder="presetPlaceholder" />
       </SelectTrigger>
       <SelectContent :body-lock="false">
@@ -136,13 +136,14 @@ const formatDisplayDate = (value?: string) => {
 
     <Popover>
       <PopoverTrigger as-child>
-        <Button variant="outline" class="w-[155px] justify-between font-normal">
+        <Button variant="outline" class="w-[155px] shrink-0 justify-between font-normal">
           {{ formatDisplayDate(props.from) }}
           <CalendarIcon class="size-4 opacity-70" />
         </Button>
       </PopoverTrigger>
       <PopoverContent class="w-auto p-0" align="end">
         <Calendar
+          layout="month-and-year"
           :model-value="fromDateValue"
           @update:model-value="(value) => emit('update:from', value ? value.toString() : '')"
         />
@@ -151,13 +152,14 @@ const formatDisplayDate = (value?: string) => {
 
     <Popover>
       <PopoverTrigger as-child>
-        <Button variant="outline" class="w-[155px] justify-between font-normal">
+        <Button variant="outline" class="w-[155px] shrink-0 justify-between font-normal">
           {{ formatDisplayDate(props.to) }}
           <CalendarIcon class="size-4 opacity-70" />
         </Button>
       </PopoverTrigger>
       <PopoverContent class="w-auto p-0" align="end">
         <Calendar
+          layout="month-and-year"
           :model-value="toDateValue"
           @update:model-value="(value) => emit('update:to', value ? value.toString() : '')"
         />

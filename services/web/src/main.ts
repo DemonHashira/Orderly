@@ -10,7 +10,12 @@ import './assets/main.css'
 const app = createApp(App)
 const pinia = createPinia()
 
-pinia.use(createPersistedState())
+pinia.use(
+  createPersistedState({
+    storage: sessionStorage,
+    auto: true,
+  }),
+)
 
 app.use(pinia)
 app.use(router)

@@ -9,6 +9,7 @@ const buildTestingPinia = () => {
   pinia.use(
     createPersistedState({
       storage: window.sessionStorage,
+      auto: true,
     }),
   )
   const app = createApp({})
