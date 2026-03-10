@@ -26,10 +26,12 @@ type OrdersTableActions = {
   canCancel: boolean
   canEditDraft: boolean
   canDeleteDraft: boolean
+  canCreateShipment: boolean
   onConfirm: (id: number) => void
   onReadyToShip: (id: number) => void
   onCancel: (id: number) => void
   onDelete: (id: number) => void
+  onCreateShipment: (id: number) => void
 }
 
 const sortableHeader = (
@@ -113,6 +115,8 @@ export const buildOrdersTableColumns = (
         const order = row.original
         const isDraft = order.current_status === 'draft'
         const isConfirmed = order.current_status === 'confirmed'
+        const isReadyToShip = order.current_status === 'ready_to_ship'
+        const isShipped = order.current_status === 'shipped'
         const canCancelState = ['draft', 'confirmed', 'ready_to_ship'].includes(
           order.current_status,
         )
@@ -189,6 +193,18 @@ export const buildOrdersTableColumns = (
                 () => 'Delete Draft',
               )
             : null,
+          actions.canCreateShipment && (isReadyToShip || isShipped)
+            ? h(
+                DropdownMenuItem,
+                {
+                  'data-test': `orders-create-shipment-${order.id}`,
+                  onSelect: () => {
+                    actions.onCreateShipment(order.id)
+                  },
+                },
+                () => (isReadyToShip ? 'Create Shipment' : 'Update Shipment'),
+              )
+            : null,
         ].filter((item): item is ReturnType<typeof h> => item != null)
 
         return h('div', { class: 'flex justify-end' }, [
@@ -200,6 +216,7 @@ export const buildOrdersTableColumns = (
                   variant: 'ghost',
                   size: 'icon',
                   class: 'size-8',
+                  'aria-label': `Open row actions for order ${order.reference}`,
                 },
                 () => h(MoreHorizontal, { class: 'size-4' }),
               ),

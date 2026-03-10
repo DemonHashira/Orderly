@@ -39,6 +39,11 @@ import {
 import { useAuth } from '@/features/auth/composables/useAuth'
 import { useCustomersQuery } from '@/features/customers/composables/useCustomersQueries'
 import { useOrderCreateLookupQuery } from '@/features/lookups/composables/useOrderCreateLookupQuery'
+import { BULGARIA_COURIER_OPTIONS } from '@/features/shipments/constants/couriers'
+import {
+  useCreateShipmentMutation,
+  useShipmentsQuery,
+} from '@/features/shipments/composables/useShipmentsQueries'
 import {
   useCancelOrderMutation,
   useConfirmOrderMutation,
@@ -54,7 +59,8 @@ import type { OrdersTableRow } from '@/features/orders/ui/orders-table-columns'
 import OrdersDataTable from '@/features/orders/ui/OrdersDataTable.vue'
 import type { OrderUpsertPayload } from '@/features/orders/types'
 import { ORDER_STATUS_OPTIONS } from '@/features/orders/types'
-import type { Order } from '@/types'
+import type { Order, Shipment } from '@/types'
+import type { CreateShipmentPayload } from '@/features/shipments/types'
 import { formatCurrency, formatDateTime } from '@/lib/formatters'
 import { isPositiveIntegerString } from '@/lib/utils'
 import { useDebouncedRef } from '@/shared/composables/useDebouncedRef'
@@ -63,6 +69,8 @@ import { normalizeApiError } from '@/shared/api/errors'
 import { ORDERS_LIST_FIELDS, useListUiStateStore } from '@/stores/list-ui-state'
 import {
   ApiErrorAlert,
+  CourierComboboxInput,
+  DatePickerInput,
   DateRangeFilter,
   EmptyStateCard,
   PageHeader,
@@ -89,6 +97,14 @@ const editSubmitError = ref('')
 const isSyncingFromRoute = ref(false)
 const persistedDetailOrder = ref<Order | null>(null)
 const persistedEditOrder = ref<Order | null>(null)
+const shipmentOrder = ref<Pick<Order, 'id' | 'reference' | 'current_status'> | null>(null)
+const shipmentForm = ref({
+  courier: '',
+  tracking_number: '',
+  shipped_at: '',
+})
+const shipmentFieldErrors = ref<Record<string, string>>({})
+const shipmentSubmitError = ref('')
 
 const page = computed({
   get: () => listUiStore.modules[listModule].page,
@@ -128,6 +144,7 @@ const canDeleteDraft = computed(() => permissions.value.includes('orders.delete'
 const canConfirm = computed(() => permissions.value.includes('orders.status.confirm'))
 const canReadyToShip = computed(() => permissions.value.includes('orders.status.ready_to_ship'))
 const canCancel = computed(() => permissions.value.includes('orders.status.cancel'))
+const canCreateShipment = computed(() => permissions.value.includes('shipments.create'))
 
 const customersQuery = useCustomersQuery(
   computed(() => ({
@@ -157,6 +174,7 @@ const readyMutation = useReadyToShipOrderMutation()
 const cancelMutation = useCancelOrderMutation()
 const deleteMutation = useDeleteOrderMutation()
 const createMutation = useCreateOrderMutation()
+const createShipmentMutation = useCreateShipmentMutation()
 const updateMutation = useUpdateOrderMutation()
 const isCreateRoute = computed(() => route.name === 'order-create')
 const isDetailRoute = computed(() => route.name === 'order-detail')
@@ -170,6 +188,31 @@ const editOrder = computed(() => editOrderQuery.data.value?.data ?? null)
 const detailOrderForDialog = computed(() => detailOrder.value ?? persistedDetailOrder.value)
 const editOrderForDialog = computed(() => editOrder.value ?? persistedEditOrder.value)
 const isEditDraftOrder = computed(() => editOrderForDialog.value?.current_status === 'draft')
+const shouldLoadExistingShipment = computed(() => shipmentOrder.value?.current_status === 'shipped')
+const existingShipmentByOrderQuery = useShipmentsQuery(
+  computed(() => ({
+    order_id: shipmentOrder.value?.id,
+    per_page: 1,
+  })),
+  {
+    enabled: shouldLoadExistingShipment,
+  },
+)
+const existingShipment = computed<Shipment | null>(() => {
+  const orderId = shipmentOrder.value?.id
+  if (!orderId) {
+    return null
+  }
+
+  return (
+    (existingShipmentByOrderQuery.data.value?.data ?? []).find(
+      (shipment) => shipment.order_id === orderId,
+    ) ?? null
+  )
+})
+const isExistingShipmentLoading = computed(
+  () => shouldLoadExistingShipment.value && existingShipmentByOrderQuery.isFetching.value,
+)
 
 const isActionMutationPending = computed(() => {
   const isPending = (mutation: unknown) => {
@@ -280,6 +323,15 @@ const actionDialogCopy = computed(() => {
   }
 })
 
+const isShipmentDialogOpen = computed({
+  get: () => shipmentOrder.value != null,
+  set: (value: boolean) => {
+    if (!value) {
+      shipmentOrder.value = null
+    }
+  },
+})
+
 watch(
   detailOrder,
   (order) => {
@@ -314,7 +366,7 @@ watch(
 
     isSyncingFromRoute.value = true
     listUiStore.hydrateFromQuery(listModule, normalizedQuery, ORDERS_LIST_FIELDS, {
-      status: (value) => validStatuses.has(value),
+      status: (value: string) => validStatuses.has(value),
       sales_channel_id: isPositiveIntegerString,
     })
     void nextTick().then(() => {
@@ -352,7 +404,7 @@ watch(
       route.query as Record<string, unknown>,
       ORDERS_LIST_FIELDS,
       {
-        status: (value) => validStatuses.has(value),
+        status: (value: string) => validStatuses.has(value),
         sales_channel_id: isPositiveIntegerString,
       },
     )
@@ -427,6 +479,102 @@ const resetFilters = () => {
   page.value = 1
 }
 
+const canOpenShipmentForStatus = (status: string) => ['ready_to_ship', 'shipped'].includes(status)
+
+const resetShipmentForm = () => {
+  shipmentForm.value = {
+    courier: '',
+    tracking_number: '',
+    shipped_at: '',
+  }
+}
+
+const normalizeDateInput = (value?: string | null): string => {
+  if (!value) {
+    return ''
+  }
+
+  const trimmed = value.trim()
+  const match = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})(?:$|T)/)
+  if (!match) {
+    return ''
+  }
+
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const day = Number(match[3])
+
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+    return ''
+  }
+
+  const date = new Date(Date.UTC(year, month - 1, day))
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    return ''
+  }
+
+  return `${match[1]}-${match[2]}-${match[3]}`
+}
+
+watch(
+  [shipmentOrder, existingShipment],
+  ([order, shipment]) => {
+    if (!order || order.current_status !== 'shipped' || !shipment) {
+      return
+    }
+
+    if (shipmentForm.value.courier.trim().length === 0) {
+      shipmentForm.value.courier = shipment.courier
+    }
+
+    if (shipmentForm.value.tracking_number.trim().length === 0 && shipment.tracking_number) {
+      shipmentForm.value.tracking_number = shipment.tracking_number
+    }
+
+    if (shipmentForm.value.shipped_at.length === 0) {
+      const shippedAt = normalizeDateInput(shipment.shipped_at)
+      if (shippedAt) {
+        shipmentForm.value.shipped_at = shippedAt
+      }
+    }
+  },
+  { immediate: true },
+)
+
+const openShipmentDialog = (order: Pick<Order, 'id' | 'reference' | 'current_status'>) => {
+  if (!canCreateShipment.value || !canOpenShipmentForStatus(order.current_status)) {
+    return
+  }
+
+  shipmentSubmitError.value = ''
+  shipmentFieldErrors.value = {}
+  resetShipmentForm()
+  shipmentOrder.value = order
+}
+
+const openShipmentDialogByOrderId = (orderId: number) => {
+  const order = tableRows.value.find((row) => row.id === orderId)
+  if (!order) {
+    return
+  }
+
+  openShipmentDialog(order)
+}
+
+const openShipmentDialogFromDetail = async () => {
+  if (!detailOrderForDialog.value) {
+    return
+  }
+
+  const order = detailOrderForDialog.value
+  await closeOrderDialog()
+  openShipmentDialog(order)
+}
+
 const mapFieldErrors = (errors?: Record<string, string[]>) => {
   if (!errors) {
     return {}
@@ -435,6 +583,63 @@ const mapFieldErrors = (errors?: Record<string, string[]>) => {
   return Object.fromEntries(
     Object.entries(errors).map(([key, messages]) => [key, messages?.[0] ?? 'Invalid value']),
   )
+}
+
+const onShipmentSubmit = async () => {
+  if (!shipmentOrder.value) {
+    return
+  }
+
+  shipmentSubmitError.value = ''
+  shipmentFieldErrors.value = {}
+
+  const normalizedTrackingNumber = shipmentForm.value.tracking_number.trim()
+  const normalizedShippedAt = normalizeDateInput(shipmentForm.value.shipped_at)
+  const existingTrackingNumber = existingShipment.value?.tracking_number?.trim() ?? ''
+  const existingShippedAt = normalizeDateInput(existingShipment.value?.shipped_at)
+  const resolvedTrackingNumber = normalizedTrackingNumber || existingTrackingNumber
+  const resolvedShippedAt = normalizedShippedAt || existingShippedAt
+  const isUpdatingShipment = shipmentOrder.value.current_status === 'shipped'
+  const missingExistingShipmentForSafeMerge = isUpdatingShipment && existingShipment.value == null
+
+  const payload: CreateShipmentPayload = {
+    courier: shipmentForm.value.courier.trim(),
+    ...(resolvedTrackingNumber.length > 0 ? { tracking_number: resolvedTrackingNumber } : {}),
+    ...(resolvedShippedAt.length > 0 ? { shipped_at: resolvedShippedAt } : {}),
+  }
+
+  if (payload.courier.length === 0) {
+    shipmentFieldErrors.value = { courier: 'Courier is required.' }
+    return
+  }
+
+  if (missingExistingShipmentForSafeMerge) {
+    const errors: Record<string, string> = {}
+    if (normalizedTrackingNumber.length === 0) {
+      errors.tracking_number =
+        'Tracking number is required when existing shipment details are unavailable.'
+    }
+    if (normalizedShippedAt.length === 0) {
+      errors.shipped_at = 'Shipped date is required when existing shipment details are unavailable.'
+    }
+
+    if (Object.keys(errors).length > 0) {
+      shipmentFieldErrors.value = errors
+      return
+    }
+  }
+
+  try {
+    await createShipmentMutation.mutateAsync({
+      orderId: shipmentOrder.value.id,
+      payload,
+    })
+    shipmentOrder.value = null
+  } catch (error: unknown) {
+    const normalized = normalizeApiError(error)
+    shipmentFieldErrors.value = mapFieldErrors(normalized.fieldErrors)
+    shipmentSubmitError.value = normalized.fieldErrors ? '' : normalized.message
+  }
 }
 
 const onCreateSubmit = async (payload: OrderUpsertPayload) => {
@@ -506,6 +711,7 @@ const closeOrderDialog = async () => {
               v-model="searchInput"
               class="pl-9"
               placeholder="Search orders by reference or internal notes"
+              aria-label="Search orders by reference or notes"
             />
           </div>
 
@@ -579,10 +785,12 @@ const closeOrderDialog = async () => {
           :can-cancel="canCancel"
           :can-edit-draft="canEditDraft"
           :can-delete-draft="canDeleteDraft"
+          :can-create-shipment="canCreateShipment"
           @confirm="(id) => openActionDialog('confirm', id)"
           @ready-to-ship="(id) => openActionDialog('ready', id)"
           @cancel="(id) => openActionDialog('cancel', id)"
           @delete="(id) => openActionDialog('delete', id)"
+          @create-shipment="openShipmentDialogByOrderId"
           @update:page="(nextPage) => (page = nextPage)"
           @update:per-page="(nextPerPage) => (perPage = nextPerPage)"
         />
@@ -668,6 +876,23 @@ const closeOrderDialog = async () => {
                   <span class="font-medium">Status:</span>
                   <StatusBadge :status="detailOrderForDialog.current_status" />
                 </div>
+                <Button
+                  v-if="
+                    canCreateShipment &&
+                    canOpenShipmentForStatus(detailOrderForDialog.current_status)
+                  "
+                  size="sm"
+                  variant="outline"
+                  class="w-fit"
+                  :data-test="`order-detail-create-shipment-${detailOrderForDialog.id}`"
+                  @click="openShipmentDialogFromDetail"
+                >
+                  {{
+                    detailOrderForDialog.current_status === 'ready_to_ship'
+                      ? 'Create Shipment'
+                      : 'Update Shipment'
+                  }}
+                </Button>
                 <p>
                   <span class="font-medium">Customer ID:</span>
                   {{ detailOrderForDialog.customer_id }}
@@ -787,6 +1012,95 @@ const closeOrderDialog = async () => {
             @cancel="closeOrderDialog"
           />
         </template>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog v-model:open="isShipmentDialogOpen">
+      <DialogContent class="w-[calc(100vw-1.5rem)] sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle>
+            {{
+              shipmentOrder?.current_status === 'ready_to_ship'
+                ? 'Create Shipment'
+                : 'Update Shipment'
+            }}
+          </DialogTitle>
+          <DialogDescription>
+            {{ shipmentOrder?.reference }} · Capture courier metadata and mark the handoff.
+          </DialogDescription>
+        </DialogHeader>
+
+        <ApiErrorAlert v-if="shipmentSubmitError" :message="shipmentSubmitError" />
+        <ApiErrorAlert
+          v-if="shouldLoadExistingShipment && existingShipmentByOrderQuery.error.value"
+          message="Unable to preload shipment details. Provide tracking number and shipped date to avoid overwriting existing values."
+        />
+
+        <form class="grid gap-4" @submit.prevent="onShipmentSubmit">
+          <div class="space-y-2">
+            <label class="text-sm font-medium" for="shipment-courier">Courier</label>
+            <CourierComboboxInput
+              class="w-full"
+              input-id="shipment-courier"
+              name="shipment_courier"
+              data-test="shipment-courier"
+              :model-value="shipmentForm.courier"
+              :options="BULGARIA_COURIER_OPTIONS"
+              placeholder="Select or type courier..."
+              aria-label="Select or type courier"
+              input-class="w-full"
+              @update:model-value="(value) => (shipmentForm.courier = value)"
+            />
+            <p v-if="shipmentFieldErrors.courier" class="text-xs text-destructive">
+              {{ shipmentFieldErrors.courier }}
+            </p>
+          </div>
+
+          <div class="space-y-2">
+            <label class="text-sm font-medium" for="shipment-tracking">Tracking number</label>
+            <Input
+              id="shipment-tracking"
+              v-model="shipmentForm.tracking_number"
+              name="shipment_tracking_number"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <p v-if="shipmentFieldErrors.tracking_number" class="text-xs text-destructive">
+              {{ shipmentFieldErrors.tracking_number }}
+            </p>
+          </div>
+
+          <div class="space-y-2">
+            <label class="text-sm font-medium" for="shipment-shipped-at">Shipped at</label>
+            <DatePickerInput
+              :model-value="shipmentForm.shipped_at"
+              trigger-id="shipment-shipped-at"
+              data-test="shipment-shipped-at"
+              button-class="w-full"
+              @update:model-value="(value) => (shipmentForm.shipped_at = value)"
+            />
+            <p v-if="shipmentFieldErrors.shipped_at" class="text-xs text-destructive">
+              {{ shipmentFieldErrors.shipped_at }}
+            </p>
+          </div>
+
+          <div class="flex justify-end gap-2">
+            <Button type="button" variant="outline" @click="shipmentOrder = null">Cancel</Button>
+            <Button
+              type="submit"
+              :disabled="createShipmentMutation.isPending.value || isExistingShipmentLoading"
+              data-test="shipment-dialog-submit"
+            >
+              {{
+                createShipmentMutation.isPending.value
+                  ? 'Saving...'
+                  : isExistingShipmentLoading
+                    ? 'Loading...'
+                    : 'Save Shipment'
+              }}
+            </Button>
+          </div>
+        </form>
       </DialogContent>
     </Dialog>
   </section>

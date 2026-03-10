@@ -33,6 +33,7 @@ const props = defineProps<{
   canCancel: boolean
   canEditDraft: boolean
   canDeleteDraft: boolean
+  canCreateShipment: boolean
 }>()
 
 const emit = defineEmits<{
@@ -40,6 +41,7 @@ const emit = defineEmits<{
   (e: 'ready-to-ship', orderId: number): void
   (e: 'cancel', orderId: number): void
   (e: 'delete', orderId: number): void
+  (e: 'create-shipment', orderId: number): void
   (e: 'update:page', value: number): void
   (e: 'update:per-page', value: number): void
 }>()
@@ -62,10 +64,12 @@ const columns = computed(() =>
     canCancel: props.canCancel,
     canEditDraft: props.canEditDraft,
     canDeleteDraft: props.canDeleteDraft,
+    canCreateShipment: props.canCreateShipment,
     onConfirm: (id) => emit('confirm', id),
     onReadyToShip: (id) => emit('ready-to-ship', id),
     onCancel: (id) => emit('cancel', id),
     onDelete: (id) => emit('delete', id),
+    onCreateShipment: (id) => emit('create-shipment', id),
   }),
 )
 
