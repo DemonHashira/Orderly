@@ -57,6 +57,17 @@ export type ReturnOrder = {
     id: number
     reference: string
     current_status: string
+    customer_id?: number
+    items?: Array<{
+      id: number
+      product_id: number
+      quantity: number
+      product?: {
+        id: number
+        name: string
+        sku: string
+      }
+    }>
   }
   items?: ReturnItem[]
 }
@@ -119,6 +130,19 @@ export type Product = {
   created_at: string
   updated_at: string
 }
+
+export type ProductImportSummary = {
+  total_rows: number
+  created: number
+  updated: number
+  failed: number
+  errors: Array<{
+    row: number
+    message: string
+  }>
+}
+
+export type ProductExportFormat = 'csv' | 'xlsx'
 
 export type SalesChannel = {
   id: number

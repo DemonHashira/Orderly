@@ -14,6 +14,8 @@ export type ListModuleKey =
 export type ListUiField =
   | 'q'
   | 'status'
+  | 'type'
+  | 'product_id'
   | 'courier'
   | 'sales_channel_id'
   | 'created_from'
@@ -24,6 +26,8 @@ export type ListUiField =
 export type ListUiState = {
   q: string
   status: string
+  type: string
+  product_id: string
   courier: string
   sales_channel_id: string
   created_from: string
@@ -59,6 +63,8 @@ const parsePositiveInteger = (value: unknown, fallback: number) => {
 const createDefaultState = (module: ListModuleKey): ListUiState => ({
   q: '',
   status: module === 'orders' ? 'all' : '',
+  type: '',
+  product_id: '',
   courier: '',
   sales_channel_id: module === 'orders' ? 'all' : '',
   created_from: '',
@@ -81,6 +87,8 @@ const createInitialModules = (): Record<ListModuleKey, ListUiState> => ({
 const defaultFields: ListUiField[] = [
   'q',
   'status',
+  'type',
+  'product_id',
   'courier',
   'sales_channel_id',
   'created_from',
@@ -243,5 +251,21 @@ export const RETURNS_LIST_FIELDS: ListUiField[] = [
   'page',
   'per_page',
 ]
+
+export const PRODUCTS_LIST_FIELDS: ListUiField[] = ['q', 'status', 'page', 'per_page']
+
+export const INVENTORY_STOCKS_LIST_FIELDS: ListUiField[] = ['q', 'status', 'page', 'per_page']
+
+export const INVENTORY_MOVEMENTS_LIST_FIELDS: ListUiField[] = [
+  'q',
+  'type',
+  'product_id',
+  'created_from',
+  'created_to',
+  'page',
+  'per_page',
+]
+
+export const CUSTOMERS_LIST_FIELDS: ListUiField[] = ['q', 'page', 'per_page']
 
 export const BASIC_LIST_FIELDS: ListUiField[] = ['q', 'page']

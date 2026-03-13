@@ -136,7 +136,11 @@ const formatDisplayDate = (value?: string) => {
 
     <Popover>
       <PopoverTrigger as-child>
-        <Button variant="outline" class="w-[155px] shrink-0 justify-between font-normal">
+        <Button
+          variant="outline"
+          class="w-[155px] shrink-0 justify-between font-normal"
+          :aria-label="`From date ${formatDisplayDate(props.from)}`"
+        >
           {{ formatDisplayDate(props.from) }}
           <CalendarIcon class="size-4 opacity-70" />
         </Button>
@@ -152,7 +156,11 @@ const formatDisplayDate = (value?: string) => {
 
     <Popover>
       <PopoverTrigger as-child>
-        <Button variant="outline" class="w-[155px] shrink-0 justify-between font-normal">
+        <Button
+          variant="outline"
+          class="w-[155px] shrink-0 justify-between font-normal"
+          :aria-label="`To date ${formatDisplayDate(props.to)}`"
+        >
           {{ formatDisplayDate(props.to) }}
           <CalendarIcon class="size-4 opacity-70" />
         </Button>
