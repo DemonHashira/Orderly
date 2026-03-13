@@ -133,7 +133,6 @@ class RoleSeeder extends Seeder
 
             'products.view',
             'returns.view',
-            'returns.item.add',
             'reports.view',
             'dashboard.view',
             'reports.orders.view',

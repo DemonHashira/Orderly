@@ -22,7 +22,10 @@ final class ProductPolicy
 
     public function view(User $user, Product $product): bool
     {
-        return $this->sameOrg($user, $product) && $this->hasPermission($user, 'products.view');
+        return $this->sameOrg($user, $product) && (
+            $this->hasPermission($user, 'products.view')
+            || $this->hasPermission($user, 'products.manage')
+        );
     }
 
     public function create(User $user): bool

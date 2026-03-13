@@ -6,6 +6,7 @@ use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use Spatie\Permission\Models\Permission;
 
 uses(RefreshDatabase::class);
 
@@ -251,6 +252,24 @@ test('index and show require products.view permission', function () {
 
     $this->getJson('/api/products')->assertStatus(403);
     $this->getJson('/api/products/'.$product->id)->assertStatus(403);
+});
+
+test('products manage permission can view a same-organization product for edit flows', function () {
+    $organization = Organization::factory()->create();
+    $product = Product::factory()->create([
+        'organization_id' => $organization->id,
+    ]);
+
+    $user = User::factory()->create(['organization_id' => $organization->id]);
+    $user->givePermissionTo(Permission::findByName('products.manage', 'web'));
+
+    Sanctum::actingAs($user);
+
+    $this->getJson('/api/products/'.$product->id)
+        ->assertStatus(200)
+        ->assertJsonPath('data.id', $product->id);
+
+    $this->getJson('/api/products')->assertStatus(403);
 });
 
 function createProductApiUser(int $organizationId, string $role): User

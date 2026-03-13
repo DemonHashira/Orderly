@@ -148,7 +148,7 @@ test('owner can add item and restock return', function () {
     ]);
 });
 
-test('logistics manager can add item but cannot restock', function () {
+test('logistics manager is view only for returns', function () {
     $organization = Organization::factory()->create();
     $owner = createReturnApiUserWithRole($organization->id, 'Owner');
     $logistics = createReturnApiUserWithRole($organization->id, 'Logistics Manager');
@@ -158,11 +158,14 @@ test('logistics manager can add item but cannot restock', function () {
 
     Sanctum::actingAs($logistics);
 
+    $this->getJson('/api/returns')->assertStatus(200);
+    $this->getJson('/api/returns/'.$returnOrder->id)->assertStatus(200);
+
     $this->postJson('/api/returns/'.$returnOrder->id.'/items', [
         'product_id' => $product->id,
         'quantity' => 1,
         'restockable' => true,
-    ])->assertStatus(200);
+    ])->assertStatus(403);
 
     $this->postJson('/api/returns/'.$returnOrder->id.'/restock')->assertStatus(403);
 });

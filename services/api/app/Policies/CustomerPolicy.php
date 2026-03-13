@@ -21,7 +21,11 @@ final class CustomerPolicy
 
     public function view(User $user, Customer $customer): bool
     {
-        return $this->sameOrg($user, $customer) && $user->hasPermissionTo('customers.view', $this->guard);
+        return $this->sameOrg($user, $customer) && (
+            $user->hasPermissionTo('customers.view', $this->guard)
+            || $user->hasPermissionTo('customers.update', $this->guard)
+            || $user->hasPermissionTo('customers.delete', $this->guard)
+        );
     }
 
     public function create(User $user): bool

@@ -6,6 +6,7 @@ use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use Spatie\Permission\Models\Permission;
 
 uses(RefreshDatabase::class);
 
@@ -211,6 +212,26 @@ test('inventory manager is denied from customer endpoints', function () {
         'email' => 'inventory-update@example.com',
     ])->assertStatus(403);
     $this->deleteJson('/api/customers/'.$customer->id)->assertStatus(403);
+});
+
+test('customer update permission can view a same-organization customer for edit flows', function () {
+    $organization = Organization::factory()->create();
+    $customer = Customer::factory()->create([
+        'organization_id' => $organization->id,
+    ]);
+
+    $user = User::factory()->create([
+        'organization_id' => $organization->id,
+    ]);
+    $user->givePermissionTo(Permission::findByName('customers.update', 'web'));
+
+    Sanctum::actingAs($user);
+
+    $this->getJson('/api/customers/'.$customer->id)
+        ->assertStatus(200)
+        ->assertJsonPath('data.id', $customer->id);
+
+    $this->getJson('/api/customers')->assertStatus(403);
 });
 
 test('email uniqueness is scoped per organization', function () {

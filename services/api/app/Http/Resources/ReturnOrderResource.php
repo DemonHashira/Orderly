@@ -18,6 +18,10 @@ final class ReturnOrderResource extends JsonResource
                 'id' => (int) $this->order->id,
                 'reference' => (string) $this->order->reference,
                 'current_status' => (string) $this->order->current_status,
+                'customer_id' => (int) $this->order->customer_id,
+                'items' => $this->order->relationLoaded('items')
+                    ? OrderItemResource::collection($this->order->items)->resolve($request)
+                    : [],
             ]),
             'items' => ReturnItemResource::collection($this->whenLoaded('items')),
             'created_at' => $this->created_at?->toISOString(),

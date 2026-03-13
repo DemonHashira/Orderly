@@ -28,7 +28,7 @@ final class ReturnController extends Controller
         $query = ReturnOrder::query()
             ->whereHas('order', fn ($builder) => $builder->forOrg($orgId))
             ->with([
-                'order:id,organization_id,reference,current_status',
+                'order:id,organization_id,reference,current_status,customer_id',
                 'items.product:id,name,sku',
             ]);
 
@@ -88,7 +88,8 @@ final class ReturnController extends Controller
         $returnOrder = ReturnOrder::query()
             ->where('order_id', $orderModel->id)
             ->with([
-                'order:id,organization_id,reference,current_status',
+                'order:id,organization_id,reference,current_status,customer_id',
+                'order.items.product:id,name,sku',
                 'items.product:id,name,sku',
             ])
             ->firstOrFail();
@@ -117,7 +118,8 @@ final class ReturnController extends Controller
         );
 
         return new ReturnOrderResource($returnOrder->refresh()->load([
-            'order:id,organization_id,reference,current_status',
+            'order:id,organization_id,reference,current_status,customer_id',
+            'order.items.product:id,name,sku',
             'items.product:id,name,sku',
         ]));
     }
@@ -137,7 +139,8 @@ final class ReturnController extends Controller
         );
 
         return new ReturnOrderResource($returnOrder->load([
-            'order:id,organization_id,reference,current_status',
+            'order:id,organization_id,reference,current_status,customer_id',
+            'order.items.product:id,name,sku',
             'items.product:id,name,sku',
         ]));
     }
@@ -147,7 +150,8 @@ final class ReturnController extends Controller
         return ReturnOrder::query()
             ->whereHas('order', fn ($builder) => $builder->forOrg($orgId))
             ->with([
-                'order:id,organization_id,reference,current_status',
+                'order:id,organization_id,reference,current_status,customer_id',
+                'order.items.product:id,name,sku',
                 'items.product:id,name,sku',
             ])
             ->findOrFail($returnId);

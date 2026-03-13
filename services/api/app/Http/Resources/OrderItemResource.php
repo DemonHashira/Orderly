@@ -15,6 +15,11 @@ final class OrderItemResource extends JsonResource
             'quantity' => (int) $this->quantity,
             'unit_price' => (string) $this->unit_price,
             'total_price' => (string) $this->total_price,
+            'product' => $this->whenLoaded('product', fn (): array => [
+                'id' => (int) $this->product->id,
+                'name' => (string) $this->product->name,
+                'sku' => (string) $this->product->sku,
+            ]),
         ];
     }
 }
