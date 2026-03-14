@@ -158,7 +158,7 @@ const getAlignmentClass = (align?: string) => {
         <Select v-model="perPageModel">
           <SelectTrigger
             size="sm"
-            class="w-20 min-w-20 px-2 text-sm"
+            class="w-[60px] max-w-[60px] px-2 text-sm"
             data-test="shipments-per-page"
           >
             <SelectValue />

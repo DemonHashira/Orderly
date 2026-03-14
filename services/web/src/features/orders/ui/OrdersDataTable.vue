@@ -166,7 +166,11 @@ const getAlignmentClass = (align?: string) => {
       <div class="flex items-center gap-1 md:justify-self-start">
         <span class="text-muted-foreground text-xs">Rows per page</span>
         <Select v-model="perPageModel">
-          <SelectTrigger size="sm" class="w-20 min-w-20 px-2 text-sm">
+          <SelectTrigger
+            size="sm"
+            class="w-[60px] max-w-[60px] px-2 text-sm"
+            data-test="orders-per-page"
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
