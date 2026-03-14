@@ -1,6 +1,12 @@
 import { apiClient } from '@/shared/api/client'
 import { compactParams } from '@/shared/api/params'
-import type { PaginatedResponse, Product, ProductListParams } from '@/types'
+import type {
+  PaginatedResponse,
+  Product,
+  ProductExportFormat,
+  ProductImportSummary,
+  ProductListParams,
+} from '@/types'
 
 export const fetchProducts = async (
   params: ProductListParams = {},
@@ -32,4 +38,48 @@ export const updateProduct = async (
 export const archiveProduct = async (id: number): Promise<{ data: Product }> => {
   const { data } = await apiClient.post<{ data: Product }>(`/api/products/${id}/archive`)
   return data
+}
+
+export const importProducts = async (file: File): Promise<ProductImportSummary> => {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const { data } = await apiClient.post<ProductImportSummary>('/api/products/import', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
+
+  return data
+}
+
+const extractFilename = (header?: string | null) => {
+  if (!header) {
+    return null
+  }
+
+  const utfMatch = header.match(/filename\*=UTF-8''([^;]+)/i)
+  if (utfMatch?.[1]) {
+    return decodeURIComponent(utfMatch[1])
+  }
+
+  const plainMatch = header.match(/filename="?([^";]+)"?/i)
+  return plainMatch?.[1] ?? null
+}
+
+export const exportProducts = async (params: {
+  format: ProductExportFormat
+  q?: string
+  is_active?: boolean
+}) => {
+  const response = await apiClient.get<Blob>('/api/products/export', {
+    params: compactParams(params),
+    responseType: 'blob',
+  })
+
+  return {
+    blob: response.data,
+    filename:
+      extractFilename(response.headers['content-disposition']) ?? `products.${params.format}`,
+  }
 }
