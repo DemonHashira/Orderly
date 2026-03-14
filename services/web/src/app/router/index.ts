@@ -13,9 +13,7 @@ import ReturnByOrderView from '@/views/ReturnByOrderView.vue'
 import InventoryStocksView from '@/views/InventoryStocksView.vue'
 import InventoryMovementsView from '@/views/InventoryMovementsView.vue'
 import ProductsView from '@/views/ProductsView.vue'
-import ProductDetailView from '@/views/ProductDetailView.vue'
 import CustomersView from '@/views/CustomersView.vue'
-import CustomerDetailView from '@/views/CustomerDetailView.vue'
 import TeamManagementView from '@/views/TeamManagementView.vue'
 import ForbiddenView from '@/views/ForbiddenView.vue'
 import AccountSecurityView from '@/views/AccountSecurityView.vue'
@@ -123,25 +121,49 @@ const router = createRouter({
           path: 'products',
           name: 'products',
           component: ProductsView,
-          meta: { permission: 'products.view' },
+          meta: { permission: 'products.view', viewKey: 'products' },
+        },
+        {
+          path: 'products/new',
+          name: 'product-create',
+          component: ProductsView,
+          meta: { permission: 'products.manage', viewKey: 'products' },
         },
         {
           path: 'products/:id',
           name: 'product-detail',
-          component: ProductDetailView,
-          meta: { permission: 'products.view' },
+          component: ProductsView,
+          meta: { permission: 'products.view', viewKey: 'products' },
+        },
+        {
+          path: 'products/:id/edit',
+          name: 'product-edit',
+          component: ProductsView,
+          meta: { permission: 'products.manage', viewKey: 'products' },
         },
         {
           path: 'customers',
           name: 'customers',
           component: CustomersView,
-          meta: { permission: 'customers.view' },
+          meta: { permission: 'customers.view', viewKey: 'customers' },
+        },
+        {
+          path: 'customers/new',
+          name: 'customer-create',
+          component: CustomersView,
+          meta: { permission: 'customers.create', viewKey: 'customers' },
         },
         {
           path: 'customers/:id',
           name: 'customer-detail',
-          component: CustomerDetailView,
-          meta: { permission: 'customers.view' },
+          component: CustomersView,
+          meta: { permission: 'customers.view', viewKey: 'customers' },
+        },
+        {
+          path: 'customers/:id/edit',
+          name: 'customer-edit',
+          component: CustomersView,
+          meta: { permission: 'customers.update', viewKey: 'customers' },
         },
         {
           path: 'team',

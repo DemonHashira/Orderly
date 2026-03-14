@@ -117,6 +117,27 @@ describe('app router login guard', () => {
     expect(router.currentRoute.value.path).toBe('/orders/new')
   })
 
+  it('allows customer-create route with customers.create permission', async () => {
+    const { router, fetchMe } = await loadRouter()
+    fetchMe.mockResolvedValue({
+      user: {
+        id: 1,
+        organization_id: 1,
+        email: 'user@example.com',
+        first_name: 'User',
+        middle_name: null,
+        last_name: 'Example',
+        is_active: true,
+      },
+      roles: [],
+      permissions: ['customers.create'],
+    })
+
+    await router.replace('/customers/new')
+
+    expect(router.currentRoute.value.path).toBe('/customers/new')
+  })
+
   it('blocks order-edit route without orders.update permission', async () => {
     const { router, fetchMe } = await loadRouter()
     fetchMe.mockResolvedValue({
@@ -134,6 +155,27 @@ describe('app router login guard', () => {
     })
 
     await router.replace('/orders/12/edit')
+
+    expect(router.currentRoute.value.path).toBe('/forbidden')
+  })
+
+  it('blocks customer-edit route without customers.update permission', async () => {
+    const { router, fetchMe } = await loadRouter()
+    fetchMe.mockResolvedValue({
+      user: {
+        id: 1,
+        organization_id: 1,
+        email: 'user@example.com',
+        first_name: 'User',
+        middle_name: null,
+        last_name: 'Example',
+        is_active: true,
+      },
+      roles: [],
+      permissions: ['customers.view'],
+    })
+
+    await router.replace('/customers/12/edit')
 
     expect(router.currentRoute.value.path).toBe('/forbidden')
   })
