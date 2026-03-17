@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { Search } from 'lucide-vue-next'
+import { Plus, Search } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -691,7 +691,10 @@ const closeOrderDialog = async () => {
     <PageHeader title="Orders" description="Manage order lifecycle transitions.">
       <template #actions>
         <Button v-if="canCreate" as-child size="sm">
-          <RouterLink to="/orders/new">New Order</RouterLink>
+          <RouterLink to="/orders/new" data-test="orders-open-create">
+            <Plus data-icon="inline-start" />
+            New Order
+          </RouterLink>
         </Button>
       </template>
     </PageHeader>

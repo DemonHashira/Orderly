@@ -3,14 +3,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { customersKeys } from '@/lib/query-keys'
 import {
   createCustomer,
+  deleteCustomer,
   fetchCustomer,
   fetchCustomers,
   updateCustomer,
 } from '@/features/customers/api/customers.api'
 import type { CustomerListParams } from '@/types'
+import type { CustomerUpsertPayload } from '@/features/customers/types'
 
 type UseCustomersQueryOptions = {
   allPages?: MaybeRefOrGetter<boolean>
+  enabled?: MaybeRefOrGetter<boolean>
 }
 
 export const useCustomersQuery = (
@@ -20,6 +23,9 @@ export const useCustomersQuery = (
   const queryParams = computed(() => toValue(params))
   const shouldFetchAllPages = computed(() =>
     options?.allPages === undefined ? false : Boolean(toValue(options.allPages)),
+  )
+  const isEnabled = computed(() =>
+    options?.enabled === undefined ? true : Boolean(toValue(options.enabled)),
   )
 
   return useQuery({
@@ -50,6 +56,7 @@ export const useCustomersQuery = (
         data: allRows,
       }
     },
+    enabled: isEnabled,
   })
 }
 
@@ -75,11 +82,23 @@ export const useUpdateCustomerMutation = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ id, payload }: { id: number; payload: Record<string, unknown> }) =>
+    mutationFn: ({ id, payload }: { id: number; payload: CustomerUpsertPayload }) =>
       updateCustomer(id, payload),
     onSuccess: (_, variables) => {
       void queryClient.invalidateQueries({ queryKey: customersKeys.all })
       void queryClient.invalidateQueries({ queryKey: customersKeys.detail(variables.id) })
+    },
+  })
+}
+
+export const useDeleteCustomerMutation = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: number) => deleteCustomer(id),
+    onSuccess: (_, customerId) => {
+      void queryClient.invalidateQueries({ queryKey: customersKeys.all })
+      queryClient.removeQueries({ queryKey: customersKeys.detail(customerId) })
     },
   })
 }

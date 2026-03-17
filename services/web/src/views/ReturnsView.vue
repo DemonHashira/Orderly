@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Search } from 'lucide-vue-next'
+import { AlertCircle, Plus, Search } from 'lucide-vue-next'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -30,8 +31,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useAuth } from '@/features/auth/composables/useAuth'
-import { useOrderCreateLookupQuery } from '@/features/lookups/composables/useOrderCreateLookupQuery'
-import { useOrderQuery } from '@/features/orders/composables/useOrdersQueries'
+import { useCustomerQuery } from '@/features/customers/composables/useCustomersQueries'
 import {
   useAddReturnItemMutation,
   useReturnQuery,
@@ -57,6 +57,36 @@ import type { ReturnOrder } from '@/types'
 
 const RESTOCKABLE_FILTER_OPTIONS = ['all', 'restockable', 'non_restockable'] as const
 
+const asSingleQueryValue = (value: unknown): string | undefined => {
+  if (typeof value === 'string') {
+    return value
+  }
+
+  if (Array.isArray(value)) {
+    return typeof value[0] === 'string' ? value[0] : undefined
+  }
+
+  return undefined
+}
+
+const normalizeReturnsRouteQuery = (query: Record<string, unknown>) => {
+  const normalizedQuery = { ...query }
+  const status = asSingleQueryValue(query.status)
+  const hasRestockable = asSingleQueryValue(query.has_restockable)
+
+  if (!status) {
+    if (hasRestockable === 'true' || hasRestockable === '1') {
+      normalizedQuery.status = 'restockable'
+    }
+
+    if (hasRestockable === 'false' || hasRestockable === '0') {
+      normalizedQuery.status = 'non_restockable'
+    }
+  }
+
+  return normalizedQuery
+}
+
 const { permissions } = useAuth()
 const route = useRoute()
 const router = useRouter()
@@ -65,6 +95,7 @@ const listModule = 'returns' as const
 const isSyncingFromRoute = ref(false)
 
 const mutationError = ref('')
+const restockNotice = ref('')
 const addItemFieldErrors = ref<Record<string, string>>({})
 const addItemSubmitError = ref('')
 const pendingRestockReturnId = ref<number | null>(null)
@@ -106,6 +137,7 @@ const returnedTo = computed({
 
 const canRestock = computed(() => permissions.value.includes('returns.restock'))
 const canAddItem = computed(() => permissions.value.includes('returns.item.add'))
+const canViewCustomers = computed(() => permissions.value.includes('customers.view'))
 
 const returnsQuery = useReturnsQuery(
   computed(() => ({
@@ -139,15 +171,33 @@ const isDetailDialogLoading = computed(
   () => isDetailRoute.value && detailReturnQuery.isLoading.value,
 )
 
-const detailOrderId = computed(() => {
-  if (!canAddItem.value) {
+const detailCustomerId = computed(() => {
+  if (!canViewCustomers.value) {
     return 0
   }
 
-  return detailReturnForDialog.value?.order_id ?? 0
+  return detailReturnForDialog.value?.order?.customer_id ?? 0
 })
-const detailOrderQuery = useOrderQuery(detailOrderId)
-const lookupQuery = useOrderCreateLookupQuery()
+const detailCustomerQuery = useCustomerQuery(detailCustomerId)
+const detailCustomer = computed(() => detailCustomerQuery.data.value?.data ?? null)
+const detailCustomerLabel = computed(() => {
+  if (detailCustomerQuery.isLoading.value && detailCustomerId.value > 0) {
+    return 'Loading customer…'
+  }
+
+  if (detailCustomer.value?.name) {
+    return detailCustomer.value.name
+  }
+
+  return detailCustomerId.value > 0 ? `#${detailCustomerId.value}` : '-'
+})
+const detailCustomerContact = computed(() => {
+  if (!detailCustomer.value) {
+    return ''
+  }
+
+  return [detailCustomer.value.email, detailCustomer.value.phone].filter(Boolean).join(' · ')
+})
 
 const addItemForm = ref({
   product_id: '',
@@ -173,17 +223,17 @@ const returnedQtyByProductId = computed(() => {
 })
 
 const productNameById = computed(() => {
-  const entries = (lookupQuery.data.value?.data?.products ?? []).map(
-    (product) => [product.id, `${product.name} (${product.sku})`] as const,
-  )
+  const entries = (detailReturnForDialog.value?.order?.items ?? [])
+    .filter((item) => item.product != null)
+    .map((item) => [item.product_id, `${item.product?.name} (${item.product?.sku})`] as const)
 
   return new Map<number, string>(entries)
 })
 
-const availableProducts = computed(() => {
-  const orderItems = detailOrderQuery.data.value?.data?.items ?? []
+const orderItems = computed(() => detailReturnForDialog.value?.order?.items ?? [])
 
-  return orderItems
+const availableProducts = computed(() => {
+  return orderItems.value
     .map((item) => {
       const alreadyReturnedQty = returnedQtyByProductId.value.get(item.product_id) ?? 0
       const remainingQty = Math.max(0, item.quantity - alreadyReturnedQty)
@@ -209,9 +259,7 @@ const selectedProductAvailability = computed(() => {
   return availableProducts.value.find((product) => product.id === productId) ?? null
 })
 
-const isAddItemContextLoading = computed(
-  () => canAddItem.value && (detailOrderQuery.isLoading.value || lookupQuery.isLoading.value),
-)
+const isAddItemContextLoading = computed(() => canAddItem.value && isDetailDialogLoading.value)
 
 const detailRestockableItemCount = computed(
   () => detailReturnForDialog.value?.items?.filter((item) => item.restockable).length ?? 0,
@@ -254,7 +302,7 @@ watch(
 watch(
   () => route.query,
   (query) => {
-    const normalizedQuery = query as Record<string, unknown>
+    const normalizedQuery = normalizeReturnsRouteQuery(query as Record<string, unknown>)
 
     if (!listUiStore.hasRelevantQuery(normalizedQuery, RETURNS_LIST_FIELDS)) {
       const persisted = listUiStore.toQuery(listModule, RETURNS_LIST_FIELDS)
@@ -300,7 +348,7 @@ watch([debouncedSearch, restockableFilter, returnedFrom, returnedTo, page, perPa
   }
   const normalizedCurrentQuery = listUiStore.normalizeQuery(
     listModule,
-    route.query as Record<string, unknown>,
+    normalizeReturnsRouteQuery(route.query as Record<string, unknown>),
     RETURNS_LIST_FIELDS,
     {
       status: (value: string) =>
@@ -350,6 +398,7 @@ const mapFieldErrors = (errors?: Record<string, string[]>) => {
 
 const openRestockDialog = (returnId: number) => {
   mutationError.value = ''
+  restockNotice.value = ''
   pendingRestockReturnId.value = returnId
 }
 
@@ -362,6 +411,8 @@ const onConfirmRestock = async () => {
 
   try {
     await restockMutation.mutateAsync(pendingRestockReturnId.value)
+    restockNotice.value =
+      'Restock request completed. This action is idempotent: already-restocked items are skipped.'
     pendingRestockReturnId.value = null
   } catch (error: unknown) {
     mutationError.value = normalizeApiError(error).message
@@ -526,6 +577,11 @@ const restockableText = (value: boolean) => (value ? 'Yes' : 'No')
     </Card>
 
     <ApiErrorAlert v-if="returnsQuery.error.value" message="Failed to load returns." />
+    <Alert v-if="restockNotice">
+      <AlertCircle />
+      <AlertTitle>Restock Completed</AlertTitle>
+      <AlertDescription>{{ restockNotice }}</AlertDescription>
+    </Alert>
     <ApiErrorAlert v-if="mutationError" :message="mutationError" />
 
     <EmptyStateCard
@@ -611,6 +667,14 @@ const restockableText = (value: boolean) => (value ? 'Yes' : 'No')
                   {{ detailReturnForDialog.reason ?? '-' }}
                 </p>
                 <p>
+                  <span class="font-medium">Customer:</span>
+                  {{ detailCustomerLabel }}
+                </p>
+                <p v-if="detailCustomerContact">
+                  <span class="font-medium">Contact:</span>
+                  {{ detailCustomerContact }}
+                </p>
+                <p>
                   <span class="font-medium">Returned at:</span>
                   {{
                     detailReturnForDialog.returned_at
@@ -662,8 +726,8 @@ const restockableText = (value: boolean) => (value ? 'Yes' : 'No')
             </Card>
           </div>
 
-          <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-            <Card>
+          <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,320px)]">
+            <Card class="min-w-0">
               <CardHeader>
                 <CardTitle>Return Items</CardTitle>
                 <CardDescription
@@ -710,7 +774,7 @@ const restockableText = (value: boolean) => (value ? 'Yes' : 'No')
                   >Add additional returned quantities to this return record.</CardDescription
                 >
               </CardHeader>
-              <CardContent class="space-y-3">
+              <CardContent class="min-w-0 space-y-3">
                 <ApiErrorAlert v-if="addItemSubmitError" :message="addItemSubmitError" />
 
                 <div
@@ -736,14 +800,18 @@ const restockableText = (value: boolean) => (value ? 'Yes' : 'No')
 
                 <form
                   v-else
-                  class="space-y-4"
+                  class="min-w-0 space-y-4"
                   data-test="returns-add-item-form"
                   @submit.prevent="onAddItemSubmit"
                 >
                   <div class="space-y-1">
                     <label class="text-sm font-medium" for="return-item-product">Product</label>
                     <Select v-model="addItemForm.product_id">
-                      <SelectTrigger id="return-item-product" data-test="returns-add-item-product">
+                      <SelectTrigger
+                        id="return-item-product"
+                        class="w-full min-w-0 max-w-full"
+                        data-test="returns-add-item-product"
+                      >
                         <SelectValue placeholder="Select product" />
                       </SelectTrigger>
                       <SelectContent>
@@ -815,6 +883,7 @@ const restockableText = (value: boolean) => (value ? 'Yes' : 'No')
                     :disabled="addItemMutation.isPending.value"
                     data-test="returns-add-item-submit"
                   >
+                    <Plus data-icon="inline-start" />
                     Add Item
                   </Button>
                 </form>

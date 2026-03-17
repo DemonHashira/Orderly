@@ -403,7 +403,13 @@ function setInitialStateFromOrder(order: Order | null) {
         <Button type="button" variant="outline" :disabled="isSubmitting" @click="emit('cancel')">
           Cancel
         </Button>
-        <Button type="button" :disabled="isSubmitting || isDisabled" @click="onSubmit">
+        <Button
+          type="button"
+          :disabled="isSubmitting || isDisabled"
+          data-test="order-form-submit"
+          @click="onSubmit"
+        >
+          <Plus v-if="mode === 'create' && !isSubmitting" data-icon="inline-start" />
           {{ isSubmitting ? 'Saving...' : submitLabel }}
         </Button>
       </div>

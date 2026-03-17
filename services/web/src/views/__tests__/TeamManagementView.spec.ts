@@ -105,6 +105,7 @@ describe('TeamManagementView', () => {
     const wrapper = await mountView()
 
     expect(wrapper.findAll('[role="combobox"]').length).toBeGreaterThan(0)
+    expect(wrapper.find('[data-test="team-open-create"] svg').exists()).toBe(true)
   })
 
   it('hides role assignment controls when roles.manage permission is missing', async () => {

@@ -241,6 +241,7 @@ describe('OrdersView', () => {
     authState.permissions = ['orders.create']
     const withPermission = await mountView()
     expect(withPermission.wrapper.text()).toContain('New Order')
+    expect(withPermission.wrapper.find('[data-test="orders-open-create"] svg').exists()).toBe(true)
   })
 
   it('shows detail shipment entry only for eligible status and permission', async () => {

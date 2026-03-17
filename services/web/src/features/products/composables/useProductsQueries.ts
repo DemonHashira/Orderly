@@ -4,18 +4,28 @@ import { productsKeys } from '@/lib/query-keys'
 import {
   archiveProduct,
   createProduct,
+  exportProducts,
   fetchProduct,
   fetchProducts,
+  importProducts,
   updateProduct,
 } from '@/features/products/api/products.api'
 import type { ProductListParams } from '@/types'
 
-export const useProductsQuery = (params: MaybeRefOrGetter<ProductListParams>) => {
+export const useProductsQuery = (
+  params: MaybeRefOrGetter<ProductListParams>,
+  options?: { enabled?: MaybeRefOrGetter<boolean> },
+) => {
   const queryParams = computed(() => toValue(params))
+  const isEnabled = computed(() =>
+    options?.enabled === undefined ? true : Boolean(toValue(options.enabled)),
+  )
 
   return useQuery({
     queryKey: computed(() => productsKeys.list(queryParams.value)),
     queryFn: () => fetchProducts(queryParams.value),
+    enabled: isEnabled,
+    placeholderData: (previousData) => previousData,
   })
 }
 
@@ -59,3 +69,19 @@ export const useArchiveProductMutation = () => {
     },
   })
 }
+
+export const useImportProductsMutation = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: importProducts,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: productsKeys.all })
+    },
+  })
+}
+
+export const useExportProductsMutation = () =>
+  useMutation({
+    mutationFn: exportProducts,
+  })

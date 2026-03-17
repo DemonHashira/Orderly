@@ -23,6 +23,19 @@ const returnsState = vi.hoisted(() => ({
         id: 101,
         reference: 'ORD-101',
         current_status: 'returned',
+        customer_id: 12,
+        items: [
+          {
+            id: 801,
+            product_id: 301,
+            quantity: 2,
+            product: {
+              id: 301,
+              name: 'Winter Jacket',
+              sku: 'JKT-301',
+            },
+          },
+        ],
       },
       items: [
         {
@@ -47,41 +60,19 @@ const mutationState = vi.hoisted(() => ({
   addItem: vi.fn(),
 }))
 
-const orderState = vi.hoisted(() => ({
+const customerState = vi.hoisted(() => ({
   detail: {
-    id: 101,
-    reference: 'ORD-101',
-    customer_id: 12,
-    sales_channel_id: 3,
-    created_by: 1,
-    current_status: 'returned',
-    total_amount: '99.00',
-    internal_notes: null,
-    created_at: '2026-03-07T10:00:00Z',
-    updated_at: '2026-03-07T10:00:00Z',
-    items: [
-      {
-        id: 801,
-        product_id: 301,
-        quantity: 2,
-        unit_price: '99.00',
-        total_price: '198.00',
-      },
-    ],
-    status_history: [],
+    id: 12,
+    name: 'Mina Petrova',
+    first_name: 'Mina',
+    middle_name: null,
+    last_name: 'Petrova',
+    email: 'mina@example.com',
+    phone: '+359888000111',
   },
 }))
 
-const lookupState = vi.hoisted(() => ({
-  products: [
-    {
-      id: 301,
-      name: 'Winter Jacket',
-      sku: 'JKT-301',
-      sale_price: '99.00',
-    },
-  ],
-}))
+const customerQueryCalls = vi.hoisted(() => [] as number[])
 
 vi.mock('@/features/auth/composables/useAuth', () => ({
   useAuth: () => ({
@@ -121,25 +112,28 @@ vi.mock('@/features/returns/composables/useReturnsQueries', () => ({
 }))
 
 vi.mock('@/features/orders/composables/useOrdersQueries', () => ({
-  useOrderQuery: () => ({
-    data: computed(() => ({ data: orderState.detail })),
-    isLoading: ref(false),
-    isFetching: ref(false),
-    error: ref(null),
-  }),
+  useOrderQuery: () => {
+    throw new Error('ReturnsView should not query order details directly')
+  },
+}))
+
+vi.mock('@/features/customers/composables/useCustomersQueries', () => ({
+  useCustomerQuery: (id: { value?: number } | number) => {
+    customerQueryCalls.push(typeof id === 'number' ? id : (id.value ?? 0))
+
+    return {
+      data: computed(() => ({ data: customerState.detail })),
+      isLoading: ref(false),
+      isFetching: ref(false),
+      error: ref(null),
+    }
+  },
 }))
 
 vi.mock('@/features/lookups/composables/useOrderCreateLookupQuery', () => ({
-  useOrderCreateLookupQuery: () => ({
-    data: ref({
-      data: {
-        products: lookupState.products,
-      },
-    }),
-    isLoading: ref(false),
-    isFetching: ref(false),
-    error: ref(null),
-  }),
+  useOrderCreateLookupQuery: () => {
+    throw new Error('ReturnsView should not use order-create lookups for return items')
+  },
 }))
 
 const DialogStub = {
@@ -166,6 +160,7 @@ const ReturnsDataTableStub = {
 describe('ReturnsView', () => {
   beforeEach(() => {
     authState.permissions = ['returns.view']
+    customerQueryCalls.length = 0
     returnsState.detail = {
       ...returnsState.list[0],
       id: 11,
@@ -252,6 +247,13 @@ describe('ReturnsView', () => {
     expect(listUiStore.modules.returns.page).toBe(2)
   })
 
+  it('hydrates legacy has_restockable query into the restockable filter', async () => {
+    const { pinia } = await mountView('/returns?has_restockable=true')
+    const listUiStore = useListUiStateStore(pinia)
+
+    expect(listUiStore.modules.returns.status).toBe('restockable')
+  })
+
   it('shows restock row action only when permission is present', async () => {
     authState.permissions = ['returns.view']
     const withoutPermission = await mountView('/returns')
@@ -284,6 +286,32 @@ describe('ReturnsView', () => {
     expect(wrapper.text()).toContain('ORD-101')
   })
 
+  it('shows linked customer details in return metadata when customer visibility is allowed', async () => {
+    authState.permissions = ['returns.view', 'customers.view']
+    const { wrapper } = await mountView('/returns/11')
+
+    expect(wrapper.text()).toContain('Customer:')
+    expect(wrapper.text()).toContain('Mina Petrova')
+    expect(wrapper.text()).toContain('mina@example.com')
+  })
+
+  it('skips customer lookups when the role cannot view customers', async () => {
+    authState.permissions = ['returns.view']
+
+    await mountView('/returns/11')
+
+    expect(customerQueryCalls).toContain(0)
+    expect(customerQueryCalls).not.toContain(12)
+  })
+
+  it('renders add-item controls without order permissions', async () => {
+    authState.permissions = ['returns.view', 'returns.item.add']
+    const { wrapper } = await mountView('/returns/11')
+
+    expect(wrapper.find('[data-test="returns-add-item-form"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Winter Jacket (JKT-301)')
+  })
+
   it('shows add-item validation and server field errors', async () => {
     authState.permissions = ['returns.view', 'returns.item.add']
 
@@ -314,5 +342,12 @@ describe('ReturnsView', () => {
 
     expect(mutationState.addItem).toHaveBeenCalled()
     expect(wrapper.text()).toContain('Too many items.')
+  })
+
+  it('shows a plus icon on the add item submit button', async () => {
+    authState.permissions = ['returns.view', 'returns.item.add']
+    const { wrapper } = await mountView('/returns/11')
+
+    expect(wrapper.find('[data-test="returns-add-item-submit"] svg').exists()).toBe(true)
   })
 })

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { Plus } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -410,7 +411,10 @@ watch(
       description="Create staff accounts, manage activation, and assign operational roles."
     >
       <template #actions>
-        <Button size="sm" @click="openCreateDialog">Add Team Member</Button>
+        <Button size="sm" data-test="team-open-create" @click="openCreateDialog">
+          <Plus data-icon="inline-start" />
+          Add Team Member
+        </Button>
       </template>
     </PageHeader>
 
@@ -689,7 +693,12 @@ watch(
             <Button type="button" variant="outline" @click="isUserDialogOpen = false"
               >Cancel</Button
             >
-            <Button type="submit" :disabled="isSubmittingUser || isRoleUpdatePending">
+            <Button
+              type="submit"
+              :disabled="isSubmittingUser || isRoleUpdatePending"
+              data-test="team-user-submit"
+            >
+              <Plus v-if="dialogMode === 'create' && !isSubmittingUser" data-icon="inline-start" />
               {{ dialogMode === 'create' ? 'Create User' : 'Save Changes' }}
             </Button>
           </div>

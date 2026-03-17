@@ -1,6 +1,7 @@
 import { apiClient } from '@/shared/api/client'
 import { compactParams } from '@/shared/api/params'
 import type { Customer, CustomerListParams, PaginatedResponse } from '@/types'
+import type { CustomerUpsertPayload } from '@/features/customers/types'
 
 export const fetchCustomers = async (
   params: CustomerListParams = {},
@@ -16,15 +17,21 @@ export const fetchCustomer = async (id: number): Promise<{ data: Customer }> => 
   return data
 }
 
-export const createCustomer = async (payload: Partial<Customer>): Promise<{ data: Customer }> => {
+export const createCustomer = async (
+  payload: CustomerUpsertPayload,
+): Promise<{ data: Customer }> => {
   const { data } = await apiClient.post<{ data: Customer }>('/api/customers', payload)
   return data
 }
 
 export const updateCustomer = async (
   id: number,
-  payload: Partial<Customer>,
+  payload: CustomerUpsertPayload,
 ): Promise<{ data: Customer }> => {
   const { data } = await apiClient.put<{ data: Customer }>(`/api/customers/${id}`, payload)
   return data
+}
+
+export const deleteCustomer = async (id: number): Promise<void> => {
+  await apiClient.delete(`/api/customers/${id}`)
 }
