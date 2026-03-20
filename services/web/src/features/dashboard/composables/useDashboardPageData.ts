@@ -15,18 +15,27 @@ export const useDashboardPageData = () => {
   const route = useRoute()
   const router = useRouter()
   const { permissions } = useAuth()
+  const permissionSet = computed(() => new Set(permissions.value))
 
   const from = computed(() => (typeof route.query.from === 'string' ? route.query.from : undefined))
   const to = computed(() => (typeof route.query.to === 'string' ? route.query.to : undefined))
+  const canViewOrdersReport = computed(() => permissionSet.value.has('reports.orders.view'))
+  const canViewInventoryReport = computed(() => permissionSet.value.has('reports.inventory.view'))
+  const canViewReturnsReport = computed(() => permissionSet.value.has('reports.returns.view'))
+  const canFetchDashboardSummary = computed(
+    () => canViewOrdersReport.value || canViewInventoryReport.value || canViewReturnsReport.value,
+  )
 
   const dashboardQuery = useDashboardSummaryQuery(
     computed(() => ({
       from: from.value,
       to: to.value,
     })),
+    {
+      enabled: canFetchDashboardSummary,
+    },
   )
 
-  const permissionSet = computed(() => new Set(permissions.value))
   const canViewOrders = computed(() => permissionSet.value.has('orders.view'))
   const canViewShipments = computed(() => permissionSet.value.has('shipments.view'))
   const canViewReturns = computed(() => permissionSet.value.has('returns.view'))

@@ -47,3 +47,14 @@ export type DashboardSummaryResponse = {
     generated_at: string
   }
 }
+
+type SummaryResponse<T> = {
+  data: T
+  meta: {
+    generated_at: string
+  }
+}
+
+export type OrdersSummaryResponse = SummaryResponse<OrdersSummary>
+export type InventorySummaryResponse = SummaryResponse<InventorySummary>
+export type ReturnsSummaryResponse = SummaryResponse<ReturnsSummary>
