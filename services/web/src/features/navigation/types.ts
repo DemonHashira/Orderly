@@ -1,6 +1,6 @@
 import type { Component } from 'vue'
 
-export type NavGroup = 'operations' | 'inventory' | 'catalog'
+export type NavGroup = 'operations' | 'reports' | 'inventory' | 'catalog'
 
 export type NavItem = {
   id: string

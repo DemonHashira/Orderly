@@ -23,6 +23,30 @@ export const NAV_ITEMS: NavItem[] = [
     group: 'operations',
   },
   {
+    id: 'reports-orders',
+    label: 'Orders Report',
+    to: '/reports/orders',
+    icon: BarChart3,
+    requiredPermission: 'reports.orders.view',
+    group: 'reports',
+  },
+  {
+    id: 'reports-inventory',
+    label: 'Inventory Report',
+    to: '/reports/inventory',
+    icon: Boxes,
+    requiredPermission: 'reports.inventory.view',
+    group: 'reports',
+  },
+  {
+    id: 'reports-returns',
+    label: 'Returns Report',
+    to: '/reports/returns',
+    icon: Archive,
+    requiredPermission: 'reports.returns.view',
+    group: 'reports',
+  },
+  {
     id: 'orders',
     label: 'Orders',
     to: '/orders',
@@ -90,6 +114,7 @@ export const NAV_ITEMS: NavItem[] = [
 
 export const NAV_GROUP_LABELS: Record<NavGroup, string> = {
   operations: 'Operations',
+  reports: 'Reports',
   inventory: 'Inventory',
   catalog: 'Catalog',
 }
@@ -130,8 +155,8 @@ export const getQuickActionsByPermissions = (permissions: string[]) => {
     },
     {
       id: 'returns',
-      label: 'Process Returns',
-      description: 'Review pending returns and restock decisions.',
+      label: 'Review Returns',
+      description: 'Review return records and restock status.',
       to: '/returns',
       icon: Archive,
       requiredPermission: 'returns.view',

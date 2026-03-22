@@ -2,6 +2,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 type FetchMeMock = ReturnType<typeof vi.fn>
 
+const buildAuthPayload = (permissions: string[], role = 'User') => ({
+  user: {
+    id: 1,
+    organization_id: 1,
+    email: 'user@example.com',
+    first_name: 'User',
+    middle_name: null,
+    last_name: 'Example',
+    is_active: true,
+  },
+  roles: [role],
+  permissions,
+})
+
 const loadRouter = async () => {
   vi.resetModules()
 
@@ -138,6 +152,48 @@ describe('app router login guard', () => {
     expect(router.currentRoute.value.path).toBe('/customers/new')
   })
 
+  it('allows orders report route with reports.orders.view permission', async () => {
+    const { router, fetchMe } = await loadRouter()
+    fetchMe.mockResolvedValue({
+      user: {
+        id: 1,
+        organization_id: 1,
+        email: 'user@example.com',
+        first_name: 'User',
+        middle_name: null,
+        last_name: 'Example',
+        is_active: true,
+      },
+      roles: [],
+      permissions: ['reports.orders.view'],
+    })
+
+    await router.replace('/reports/orders')
+
+    expect(router.currentRoute.value.path).toBe('/reports/orders')
+  })
+
+  it('blocks inventory report route without reports.inventory.view permission', async () => {
+    const { router, fetchMe } = await loadRouter()
+    fetchMe.mockResolvedValue({
+      user: {
+        id: 1,
+        organization_id: 1,
+        email: 'user@example.com',
+        first_name: 'User',
+        middle_name: null,
+        last_name: 'Example',
+        is_active: true,
+      },
+      roles: [],
+      permissions: ['reports.orders.view', 'reports.returns.view'],
+    })
+
+    await router.replace('/reports/inventory')
+
+    expect(router.currentRoute.value.path).toBe('/forbidden')
+  })
+
   it('blocks order-edit route without orders.update permission', async () => {
     const { router, fetchMe } = await loadRouter()
     fetchMe.mockResolvedValue({
@@ -203,22 +259,171 @@ describe('app router login guard', () => {
 
   it('blocks team management route without users.manage permission', async () => {
     const { router, fetchMe } = await loadRouter()
-    fetchMe.mockResolvedValue({
-      user: {
-        id: 1,
-        organization_id: 1,
-        email: 'limited@example.com',
-        first_name: 'Limited',
-        middle_name: null,
-        last_name: 'User',
-        is_active: true,
-      },
-      roles: ['Order Manager'],
-      permissions: ['orders.view'],
-    })
+    fetchMe.mockResolvedValue(buildAuthPayload(['orders.view'], 'Order Manager'))
 
     await router.replace('/team')
 
     expect(router.currentRoute.value.path).toBe('/forbidden')
+  })
+
+  it('enforces the shipped MVP route matrix for all seeded roles', async () => {
+    const routeExpectations = [
+      {
+        role: 'Owner',
+        permissions: [
+          'dashboard.view',
+          'orders.view',
+          'shipments.view',
+          'returns.view',
+          'inventory.view',
+          'products.view',
+          'customers.view',
+          'reports.orders.view',
+          'reports.inventory.view',
+          'reports.returns.view',
+          'users.manage',
+        ],
+        allowed: [
+          '/dashboard',
+          '/orders',
+          '/shipments',
+          '/returns',
+          '/inventory/stocks',
+          '/inventory/movements',
+          '/products',
+          '/customers',
+          '/reports/orders',
+          '/reports/inventory',
+          '/reports/returns',
+          '/team',
+          '/account/security',
+        ],
+        forbidden: [],
+      },
+      {
+        role: 'Order Manager',
+        permissions: [
+          'dashboard.view',
+          'orders.view',
+          'returns.view',
+          'inventory.view',
+          'products.view',
+          'customers.view',
+          'reports.orders.view',
+          'reports.returns.view',
+        ],
+        allowed: [
+          '/dashboard',
+          '/orders',
+          '/returns',
+          '/inventory/stocks',
+          '/inventory/movements',
+          '/products',
+          '/customers',
+          '/reports/orders',
+          '/reports/returns',
+          '/account/security',
+        ],
+        forbidden: ['/shipments', '/reports/inventory', '/team'],
+      },
+      {
+        role: 'Logistics Manager',
+        permissions: [
+          'dashboard.view',
+          'orders.view',
+          'shipments.view',
+          'returns.view',
+          'inventory.view',
+          'products.view',
+          'customers.view',
+          'reports.orders.view',
+          'reports.returns.view',
+        ],
+        allowed: [
+          '/dashboard',
+          '/orders',
+          '/shipments',
+          '/returns',
+          '/inventory/stocks',
+          '/inventory/movements',
+          '/products',
+          '/customers',
+          '/reports/orders',
+          '/reports/returns',
+          '/account/security',
+        ],
+        forbidden: ['/reports/inventory', '/team'],
+      },
+      {
+        role: 'Inventory Manager',
+        permissions: [
+          'dashboard.view',
+          'orders.view',
+          'returns.view',
+          'inventory.view',
+          'products.view',
+          'reports.inventory.view',
+          'reports.returns.view',
+        ],
+        allowed: [
+          '/dashboard',
+          '/orders',
+          '/returns',
+          '/inventory/stocks',
+          '/inventory/movements',
+          '/products',
+          '/reports/inventory',
+          '/reports/returns',
+          '/account/security',
+        ],
+        forbidden: ['/shipments', '/customers', '/reports/orders', '/team'],
+      },
+      {
+        role: 'Queue Only',
+        permissions: ['dashboard.view', 'inventory.view', 'returns.view'],
+        allowed: [
+          '/dashboard',
+          '/returns',
+          '/inventory/stocks',
+          '/inventory/movements',
+          '/account/security',
+        ],
+        forbidden: [
+          '/orders',
+          '/shipments',
+          '/products',
+          '/customers',
+          '/reports/orders',
+          '/reports/inventory',
+          '/reports/returns',
+          '/team',
+        ],
+      },
+    ] as const
+
+    for (const expectation of routeExpectations) {
+      for (const path of expectation.allowed) {
+        const { router, fetchMe } = await loadRouter()
+        fetchMe.mockResolvedValue(buildAuthPayload([...expectation.permissions], expectation.role))
+
+        await router.replace(path)
+
+        expect(router.currentRoute.value.path, `${expectation.role} should access ${path}`).toBe(
+          path,
+        )
+      }
+
+      for (const path of expectation.forbidden) {
+        const { router, fetchMe } = await loadRouter()
+        fetchMe.mockResolvedValue(buildAuthPayload([...expectation.permissions], expectation.role))
+
+        await router.replace(path)
+
+        expect(
+          router.currentRoute.value.path,
+          `${expectation.role} should be blocked from ${path}`,
+        ).toBe('/forbidden')
+      }
+    }
   })
 })

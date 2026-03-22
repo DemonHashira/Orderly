@@ -12,6 +12,9 @@ import ReturnsView from '@/views/ReturnsView.vue'
 import ReturnByOrderView from '@/views/ReturnByOrderView.vue'
 import InventoryStocksView from '@/views/InventoryStocksView.vue'
 import InventoryMovementsView from '@/views/InventoryMovementsView.vue'
+import ReportsOrdersView from '@/views/ReportsOrdersView.vue'
+import ReportsInventoryView from '@/views/ReportsInventoryView.vue'
+import ReportsReturnsView from '@/views/ReportsReturnsView.vue'
 import ProductsView from '@/views/ProductsView.vue'
 import CustomersView from '@/views/CustomersView.vue'
 import TeamManagementView from '@/views/TeamManagementView.vue'
@@ -56,6 +59,24 @@ const router = createRouter({
           name: 'orders',
           component: OrdersView,
           meta: { permission: 'orders.view', viewKey: 'orders' },
+        },
+        {
+          path: 'reports/orders',
+          name: 'reports-orders',
+          component: ReportsOrdersView,
+          meta: { permission: 'reports.orders.view' },
+        },
+        {
+          path: 'reports/inventory',
+          name: 'reports-inventory',
+          component: ReportsInventoryView,
+          meta: { permission: 'reports.inventory.view' },
+        },
+        {
+          path: 'reports/returns',
+          name: 'reports-returns',
+          component: ReportsReturnsView,
+          meta: { permission: 'reports.returns.view' },
         },
         {
           path: 'orders/new',
