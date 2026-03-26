@@ -8,6 +8,16 @@ export const dashboardKeys = {
   summary: (params: Record<string, unknown>) => [...dashboardKeys.all, 'summary', params] as const,
 }
 
+export const reportsKeys = {
+  all: ['reports'] as const,
+  ordersSummary: (params: Record<string, unknown>) =>
+    [...reportsKeys.all, 'orders-summary', params] as const,
+  inventorySummary: (params: Record<string, unknown>) =>
+    [...reportsKeys.all, 'inventory-summary', params] as const,
+  returnsSummary: (params: Record<string, unknown>) =>
+    [...reportsKeys.all, 'returns-summary', params] as const,
+}
+
 export const ordersKeys = {
   all: ['orders'] as const,
   list: (params: Record<string, unknown>) => [...ordersKeys.all, 'list', params] as const,

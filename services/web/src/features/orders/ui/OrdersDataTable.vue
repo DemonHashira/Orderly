@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -115,7 +116,7 @@ const getAlignmentClass = (align?: string) => {
 </script>
 
 <template>
-  <div class="space-y-4">
+  <div class="flex flex-col gap-4">
     <div class="rounded-md border">
       <Table>
         <TableHeader>
@@ -170,14 +171,17 @@ const getAlignmentClass = (align?: string) => {
             size="sm"
             class="w-[60px] max-w-[60px] px-2 text-sm"
             data-test="orders-per-page"
+            aria-label="Rows per page"
           >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="10">10</SelectItem>
-            <SelectItem value="15">15</SelectItem>
-            <SelectItem value="25">25</SelectItem>
-            <SelectItem value="50">50</SelectItem>
+            <SelectGroup>
+              <SelectItem value="10">10</SelectItem>
+              <SelectItem value="15">15</SelectItem>
+              <SelectItem value="25">25</SelectItem>
+              <SelectItem value="50">50</SelectItem>
+            </SelectGroup>
           </SelectContent>
         </Select>
       </div>
@@ -191,37 +195,37 @@ const getAlignmentClass = (align?: string) => {
           variant="outline"
           size="icon"
           :disabled="currentPage <= 1"
+          aria-label="First page"
           @click="emit('update:page', 1)"
         >
-          <ChevronsLeft class="size-4" />
-          <span class="sr-only">First page</span>
+          <ChevronsLeft aria-hidden="true" />
         </Button>
         <Button
           variant="outline"
           size="icon"
           :disabled="currentPage <= 1"
+          aria-label="Previous page"
           @click="emit('update:page', Math.max(1, currentPage - 1))"
         >
-          <ChevronLeft class="size-4" />
-          <span class="sr-only">Previous page</span>
+          <ChevronLeft aria-hidden="true" />
         </Button>
         <Button
           variant="outline"
           size="icon"
           :disabled="currentPage >= totalPages"
+          aria-label="Next page"
           @click="emit('update:page', Math.min(totalPages, currentPage + 1))"
         >
-          <ChevronRight class="size-4" />
-          <span class="sr-only">Next page</span>
+          <ChevronRight aria-hidden="true" />
         </Button>
         <Button
           variant="outline"
           size="icon"
           :disabled="currentPage >= totalPages"
+          aria-label="Last page"
           @click="emit('update:page', totalPages)"
         >
-          <ChevronsRight class="size-4" />
-          <span class="sr-only">Last page</span>
+          <ChevronsRight aria-hidden="true" />
         </Button>
       </div>
     </div>

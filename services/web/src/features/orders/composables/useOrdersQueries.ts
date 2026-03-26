@@ -1,6 +1,6 @@
 import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { ordersKeys, dashboardKeys } from '@/lib/query-keys'
+import { ordersKeys, dashboardKeys, reportsKeys } from '@/lib/query-keys'
 import {
   cancelOrder,
   confirmOrder,
@@ -161,6 +161,7 @@ export const useConfirmOrderMutation = () => {
       void queryClient.invalidateQueries({ queryKey: ordersKeys.all })
       void queryClient.invalidateQueries({ queryKey: ordersKeys.detail(orderId) })
       void queryClient.invalidateQueries({ queryKey: dashboardKeys.all })
+      void queryClient.invalidateQueries({ queryKey: reportsKeys.all })
     },
   })
 }
@@ -173,6 +174,7 @@ export const useReadyToShipOrderMutation = () => {
       void queryClient.invalidateQueries({ queryKey: ordersKeys.all })
       void queryClient.invalidateQueries({ queryKey: ordersKeys.detail(orderId) })
       void queryClient.invalidateQueries({ queryKey: dashboardKeys.all })
+      void queryClient.invalidateQueries({ queryKey: reportsKeys.all })
     },
   })
 }
@@ -204,6 +206,7 @@ export const useCancelOrderMutation = () => {
       void queryClient.invalidateQueries({ queryKey: ordersKeys.all })
       void queryClient.invalidateQueries({ queryKey: ordersKeys.detail(orderId) })
       void queryClient.invalidateQueries({ queryKey: dashboardKeys.all })
+      void queryClient.invalidateQueries({ queryKey: reportsKeys.all })
     },
   })
 }
@@ -216,6 +219,7 @@ export const useCreateOrderMutation = () => {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ordersKeys.all })
       void queryClient.invalidateQueries({ queryKey: dashboardKeys.all })
+      void queryClient.invalidateQueries({ queryKey: reportsKeys.all })
     },
   })
 }
@@ -230,6 +234,7 @@ export const useUpdateOrderMutation = () => {
       void queryClient.invalidateQueries({ queryKey: ordersKeys.all })
       void queryClient.invalidateQueries({ queryKey: ordersKeys.detail(variables.id) })
       void queryClient.invalidateQueries({ queryKey: dashboardKeys.all })
+      void queryClient.invalidateQueries({ queryKey: reportsKeys.all })
     },
   })
 }
@@ -262,6 +267,7 @@ export const useDeleteOrderMutation = () => {
       void queryClient.invalidateQueries({ queryKey: ordersKeys.all })
       void queryClient.removeQueries({ queryKey: ordersKeys.detail(id) })
       void queryClient.invalidateQueries({ queryKey: dashboardKeys.all })
+      void queryClient.invalidateQueries({ queryKey: reportsKeys.all })
     },
   })
 }

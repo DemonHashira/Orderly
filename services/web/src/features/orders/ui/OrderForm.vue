@@ -3,10 +3,12 @@ import { computed, reactive, ref, watch } from 'vue'
 import { Plus, Trash2 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -57,6 +59,13 @@ const state = reactive({
 const localErrors = reactive<Record<string, string>>({})
 const dismissedServerErrorKeys = ref<Set<string>>(new Set())
 
+const customerFieldId = 'order-customer'
+const customerFieldErrorId = 'order-customer-error'
+const salesChannelFieldId = 'order-sales-channel'
+const salesChannelFieldErrorId = 'order-sales-channel-error'
+const internalNotesFieldId = 'order-internal-notes'
+const itemsFieldErrorId = 'order-items-error'
+
 const combinedFieldErrors = computed(() => {
   const filteredServerErrors = Object.fromEntries(
     Object.entries(props.serverFieldErrors).filter(
@@ -79,7 +88,6 @@ const productSalePriceById = computed(() => {
 })
 
 const submitLabel = computed(() => (props.mode === 'create' ? 'Create Order' : 'Save Changes'))
-
 const itemCount = computed(() => state.items.length)
 
 const orderTotal = computed(() => {
@@ -186,6 +194,13 @@ const onProductChange = (index: number, productId: string) => {
   clearFieldError('items')
 }
 
+const getItemProductFieldId = (index: number) => `order-item-${index}-product`
+const getItemProductFieldErrorId = (index: number) => `order-item-${index}-product-error`
+const getItemQuantityFieldId = (index: number) => `order-item-${index}-quantity`
+const getItemQuantityFieldErrorId = (index: number) => `order-item-${index}-quantity-error`
+const getItemUnitPriceFieldId = (index: number) => `order-item-${index}-unit-price`
+const getItemUnitPriceFieldErrorId = (index: number) => `order-item-${index}-unit-price-error`
+
 function setInitialStateFromOrder(order: Order | null) {
   if (!order) {
     state.customer_id = ''
@@ -214,205 +229,284 @@ function setInitialStateFromOrder(order: Order | null) {
         Choose customer, channel, and line items. Prices can be overridden per item if needed.
       </CardDescription>
     </CardHeader>
-    <CardContent class="space-y-5">
-      <div
-        v-if="apiError"
-        class="bg-destructive/10 text-destructive rounded-md border border-destructive/20 px-3 py-2 text-sm"
-      >
-        {{ apiError }}
-      </div>
-
-      <div class="grid gap-4 md:grid-cols-2">
-        <div class="space-y-2">
-          <label class="block text-sm font-medium">Customer</label>
-          <Select
-            v-model="state.customer_id"
-            :disabled="isDisabled"
-            @update:model-value="() => clearFieldError('customer_id')"
-          >
-            <SelectTrigger class="w-full">
-              <SelectValue placeholder="Select customer" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem
-                v-for="customer in customers"
-                :key="customer.id"
-                :value="String(customer.id)"
-              >
-                {{ customer.name }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-          <p v-if="combinedFieldErrors.customer_id" class="text-destructive text-sm">
-            {{ combinedFieldErrors.customer_id }}
-          </p>
-        </div>
-
-        <div class="space-y-2">
-          <label class="block text-sm font-medium">Sales Channel</label>
-          <Select
-            v-model="state.sales_channel_id"
-            :disabled="isDisabled"
-            @update:model-value="() => clearFieldError('sales_channel_id')"
-          >
-            <SelectTrigger class="w-full">
-              <SelectValue placeholder="Select channel" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem
-                v-for="channel in lookups?.sales_channels ?? []"
-                :key="channel.id"
-                :value="String(channel.id)"
-              >
-                {{ channel.name }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-          <p v-if="combinedFieldErrors.sales_channel_id" class="text-destructive text-sm">
-            {{ combinedFieldErrors.sales_channel_id }}
-          </p>
-        </div>
-      </div>
-
-      <div class="space-y-2">
-        <label for="internal_notes" class="block text-sm font-medium">Internal Notes</label>
-        <Input
-          id="internal_notes"
-          v-model="state.internal_notes"
-          :disabled="isDisabled"
-          placeholder="Optional notes for this draft"
-          class="w-full"
-        />
-      </div>
-
-      <div class="space-y-3">
-        <div class="flex items-center justify-between">
-          <h3 class="text-base font-medium">Items</h3>
-          <Button type="button" variant="outline" size="sm" :disabled="isDisabled" @click="addItem">
-            <Plus class="mr-1 size-4" />
-            Add Item
-          </Button>
-        </div>
-
+    <CardContent>
+      <form class="flex flex-col gap-5" @submit.prevent="onSubmit">
         <div
-          class="max-h-73.75 space-y-3 overflow-y-auto pr-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border"
+          v-if="apiError"
+          class="rounded-md border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive"
         >
-          <div v-for="(item, index) in state.items" :key="index" class="rounded-md border p-3">
-            <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_96px_156px_36px] md:items-start">
-              <div class="space-y-2">
-                <label class="block text-sm font-medium">Product</label>
-                <Select
-                  :model-value="item.product_id"
-                  :disabled="isDisabled"
-                  @update:model-value="(value) => onProductChange(index, String(value ?? ''))"
-                >
-                  <SelectTrigger class="w-full">
-                    <SelectValue placeholder="Select product" />
-                  </SelectTrigger>
-                  <SelectContent side="bottom" align="start" :side-offset="6" class="max-h-64">
-                    <SelectItem
-                      v-for="product in lookups?.products ?? []"
-                      :key="product.id"
-                      :value="String(product.id)"
-                    >
-                      {{ product.sku }} - {{ product.name }}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-                <p
-                  v-if="combinedFieldErrors[`items.${index}.product_id`]"
-                  class="text-destructive text-sm"
-                >
-                  {{ combinedFieldErrors[`items.${index}.product_id`] }}
-                </p>
-              </div>
+          {{ apiError }}
+        </div>
 
-              <div class="space-y-2">
-                <label class="block text-sm font-medium">Qty</label>
-                <Input
-                  v-model="item.quantity"
-                  type="number"
-                  min="1"
-                  :disabled="isDisabled"
-                  @update:model-value="
-                    () => {
-                      clearFieldError(`items.${index}.quantity`)
-                      clearFieldError('items')
-                    }
-                  "
-                />
-                <p
-                  v-if="combinedFieldErrors[`items.${index}.quantity`]"
-                  class="text-destructive text-sm"
-                >
-                  {{ combinedFieldErrors[`items.${index}.quantity`] }}
-                </p>
-              </div>
-
-              <div class="space-y-2">
-                <label class="block text-sm font-medium">Unit Price</label>
-                <Input
-                  :model-value="item.unit_price || ''"
-                  placeholder="Auto from product"
-                  disabled
-                  readonly
-                  tabindex="-1"
-                  aria-readonly="true"
-                  class="pointer-events-none"
-                />
-                <p
-                  v-if="combinedFieldErrors[`items.${index}.unit_price`]"
-                  class="text-destructive text-sm"
-                >
-                  {{ combinedFieldErrors[`items.${index}.unit_price`] }}
-                </p>
-              </div>
-
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                class="self-start md:mt-8"
-                :disabled="isDisabled || state.items.length <= 1"
-                @click="removeItem(index)"
+        <FieldGroup class="gap-4 md:grid md:grid-cols-2">
+          <Field
+            :data-invalid="Boolean(combinedFieldErrors.customer_id) || undefined"
+            :data-disabled="isDisabled || undefined"
+          >
+            <FieldLabel :for="customerFieldId">Customer</FieldLabel>
+            <Select
+              v-model="state.customer_id"
+              :disabled="isDisabled"
+              @update:model-value="() => clearFieldError('customer_id')"
+            >
+              <SelectTrigger
+                :id="customerFieldId"
+                class="w-full"
+                :aria-invalid="Boolean(combinedFieldErrors.customer_id)"
+                :aria-describedby="
+                  combinedFieldErrors.customer_id ? customerFieldErrorId : undefined
+                "
               >
-                <Trash2 class="size-4" />
-              </Button>
+                <SelectValue placeholder="Select customer" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem
+                    v-for="customer in customers"
+                    :key="customer.id"
+                    :value="String(customer.id)"
+                  >
+                    {{ customer.name }}
+                  </SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <FieldError
+              v-if="combinedFieldErrors.customer_id"
+              :id="customerFieldErrorId"
+              :errors="[combinedFieldErrors.customer_id]"
+            />
+          </Field>
+
+          <Field
+            :data-invalid="Boolean(combinedFieldErrors.sales_channel_id) || undefined"
+            :data-disabled="isDisabled || undefined"
+          >
+            <FieldLabel :for="salesChannelFieldId">Sales Channel</FieldLabel>
+            <Select
+              v-model="state.sales_channel_id"
+              :disabled="isDisabled"
+              @update:model-value="() => clearFieldError('sales_channel_id')"
+            >
+              <SelectTrigger
+                :id="salesChannelFieldId"
+                class="w-full"
+                :aria-invalid="Boolean(combinedFieldErrors.sales_channel_id)"
+                :aria-describedby="
+                  combinedFieldErrors.sales_channel_id ? salesChannelFieldErrorId : undefined
+                "
+              >
+                <SelectValue placeholder="Select channel" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem
+                    v-for="channel in lookups?.sales_channels ?? []"
+                    :key="channel.id"
+                    :value="String(channel.id)"
+                  >
+                    {{ channel.name }}
+                  </SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <FieldError
+              v-if="combinedFieldErrors.sales_channel_id"
+              :id="salesChannelFieldErrorId"
+              :errors="[combinedFieldErrors.sales_channel_id]"
+            />
+          </Field>
+        </FieldGroup>
+
+        <Field :data-disabled="isDisabled || undefined">
+          <FieldLabel :for="internalNotesFieldId">Internal Notes</FieldLabel>
+          <Input
+            :id="internalNotesFieldId"
+            v-model="state.internal_notes"
+            :disabled="isDisabled"
+            placeholder="Optional notes for this draft"
+            class="w-full"
+          />
+        </Field>
+
+        <div class="flex flex-col gap-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-base font-medium">Items</h3>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              :disabled="isDisabled"
+              @click="addItem"
+            >
+              <Plus data-icon="inline-start" aria-hidden="true" />
+              Add Item
+            </Button>
+          </div>
+
+          <div
+            class="max-h-73.75 flex flex-col gap-3 overflow-y-auto pr-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border"
+          >
+            <div v-for="(item, index) in state.items" :key="index" class="rounded-md border p-3">
+              <FieldGroup class="gap-3 md:grid md:grid-cols-[minmax(0,1fr)_96px_156px_36px]">
+                <Field
+                  :data-invalid="
+                    Boolean(combinedFieldErrors[`items.${index}.product_id`]) || undefined
+                  "
+                  :data-disabled="isDisabled || undefined"
+                >
+                  <FieldLabel :for="getItemProductFieldId(index)">Product</FieldLabel>
+                  <Select
+                    :model-value="item.product_id"
+                    :disabled="isDisabled"
+                    @update:model-value="(value) => onProductChange(index, String(value ?? ''))"
+                  >
+                    <SelectTrigger
+                      :id="getItemProductFieldId(index)"
+                      class="w-full"
+                      :aria-invalid="Boolean(combinedFieldErrors[`items.${index}.product_id`])"
+                      :aria-describedby="
+                        combinedFieldErrors[`items.${index}.product_id`]
+                          ? getItemProductFieldErrorId(index)
+                          : undefined
+                      "
+                    >
+                      <SelectValue placeholder="Select product" />
+                    </SelectTrigger>
+                    <SelectContent side="bottom" align="start" :side-offset="6" class="max-h-64">
+                      <SelectGroup>
+                        <SelectItem
+                          v-for="product in lookups?.products ?? []"
+                          :key="product.id"
+                          :value="String(product.id)"
+                        >
+                          {{ product.sku }} - {{ product.name }}
+                        </SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  <FieldError
+                    v-if="combinedFieldErrors[`items.${index}.product_id`]"
+                    :id="getItemProductFieldErrorId(index)"
+                    :errors="[combinedFieldErrors[`items.${index}.product_id`]]"
+                  />
+                </Field>
+
+                <Field
+                  :data-invalid="
+                    Boolean(combinedFieldErrors[`items.${index}.quantity`]) || undefined
+                  "
+                  :data-disabled="isDisabled || undefined"
+                >
+                  <FieldLabel :for="getItemQuantityFieldId(index)">Qty</FieldLabel>
+                  <Input
+                    :id="getItemQuantityFieldId(index)"
+                    v-model="item.quantity"
+                    type="number"
+                    min="1"
+                    :disabled="isDisabled"
+                    :aria-invalid="Boolean(combinedFieldErrors[`items.${index}.quantity`])"
+                    :aria-describedby="
+                      combinedFieldErrors[`items.${index}.quantity`]
+                        ? getItemQuantityFieldErrorId(index)
+                        : undefined
+                    "
+                    @update:model-value="
+                      () => {
+                        clearFieldError(`items.${index}.quantity`)
+                        clearFieldError('items')
+                      }
+                    "
+                  />
+                  <FieldError
+                    v-if="combinedFieldErrors[`items.${index}.quantity`]"
+                    :id="getItemQuantityFieldErrorId(index)"
+                    :errors="[combinedFieldErrors[`items.${index}.quantity`]]"
+                  />
+                </Field>
+
+                <Field
+                  :data-invalid="
+                    Boolean(combinedFieldErrors[`items.${index}.unit_price`]) || undefined
+                  "
+                  data-disabled
+                >
+                  <FieldLabel :for="getItemUnitPriceFieldId(index)">Unit Price</FieldLabel>
+                  <Input
+                    :id="getItemUnitPriceFieldId(index)"
+                    :model-value="item.unit_price || ''"
+                    placeholder="Auto from product"
+                    disabled
+                    readonly
+                    tabindex="-1"
+                    aria-readonly="true"
+                    :aria-describedby="
+                      combinedFieldErrors[`items.${index}.unit_price`]
+                        ? getItemUnitPriceFieldErrorId(index)
+                        : undefined
+                    "
+                    class="pointer-events-none"
+                  />
+                  <FieldError
+                    v-if="combinedFieldErrors[`items.${index}.unit_price`]"
+                    :id="getItemUnitPriceFieldErrorId(index)"
+                    :errors="[combinedFieldErrors[`items.${index}.unit_price`]]"
+                  />
+                </Field>
+
+                <div class="flex items-start md:pt-7">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    :disabled="isDisabled || state.items.length <= 1"
+                    :aria-label="`Remove item ${index + 1}`"
+                    @click="removeItem(index)"
+                  >
+                    <Trash2 aria-hidden="true" />
+                  </Button>
+                </div>
+              </FieldGroup>
             </div>
           </div>
+
+          <Field v-if="combinedFieldErrors.items" data-invalid>
+            <FieldError :id="itemsFieldErrorId" :errors="[combinedFieldErrors.items]" />
+          </Field>
         </div>
 
-        <p v-if="combinedFieldErrors.items" class="text-destructive text-sm">
-          {{ combinedFieldErrors.items }}
-        </p>
-      </div>
-
-      <div class="flex flex-wrap items-center gap-2 border-t pt-4">
-        <div
-          class="bg-muted/40 flex w-full flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2"
-        >
-          <p class="text-muted-foreground text-sm">
-            {{ itemCount }} {{ itemCount === 1 ? 'item' : 'items' }} in this order
-          </p>
-          <div class="flex items-baseline gap-2">
-            <span class="text-muted-foreground text-sm font-medium">Order Total</span>
-            <span class="text-lg font-semibold tabular-nums">{{ formatCurrency(orderTotal) }}</span>
+        <div class="flex flex-wrap items-center gap-2 border-t pt-4">
+          <div
+            class="bg-muted/40 flex w-full flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2"
+          >
+            <p class="text-muted-foreground text-sm">
+              {{ itemCount }} {{ itemCount === 1 ? 'item' : 'items' }} in this order
+            </p>
+            <div class="flex items-baseline gap-2">
+              <span class="text-muted-foreground text-sm font-medium">Order Total</span>
+              <span class="text-lg font-semibold tabular-nums">{{
+                formatCurrency(orderTotal)
+              }}</span>
+            </div>
           </div>
-        </div>
 
-        <Button type="button" variant="outline" :disabled="isSubmitting" @click="emit('cancel')">
-          Cancel
-        </Button>
-        <Button
-          type="button"
-          :disabled="isSubmitting || isDisabled"
-          data-test="order-form-submit"
-          @click="onSubmit"
-        >
-          <Plus v-if="mode === 'create' && !isSubmitting" data-icon="inline-start" />
-          {{ isSubmitting ? 'Saving...' : submitLabel }}
-        </Button>
-      </div>
+          <Button type="button" variant="outline" :disabled="isSubmitting" @click="emit('cancel')">
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            :disabled="isSubmitting || isDisabled"
+            data-test="order-form-submit"
+          >
+            <Plus
+              v-if="mode === 'create' && !isSubmitting"
+              data-icon="inline-start"
+              aria-hidden="true"
+            />
+            {{ isSubmitting ? 'Saving...' : submitLabel }}
+          </Button>
+        </div>
+      </form>
     </CardContent>
   </Card>
 </template>

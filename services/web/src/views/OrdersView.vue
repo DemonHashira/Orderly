@@ -2,6 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { Plus, Search } from 'lucide-vue-next'
+import { toast } from 'vue-sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -435,12 +436,16 @@ const onConfirmAction = async () => {
   try {
     if (type === 'confirm') {
       await confirmMutation.mutateAsync(orderId)
+      toast.success('Order moved to confirmed successfully.')
     } else if (type === 'ready') {
       await readyMutation.mutateAsync(orderId)
+      toast.success('Order moved to ready_to_ship successfully.')
     } else if (type === 'cancel') {
       await cancelMutation.mutateAsync(orderId)
+      toast.success('Order cancelled successfully.')
     } else {
       await deleteMutation.mutateAsync(orderId)
+      toast.success('Draft order deleted successfully.')
     }
     pendingAction.value = null
   } catch (error: unknown) {
@@ -634,6 +639,7 @@ const onShipmentSubmit = async () => {
       orderId: shipmentOrder.value.id,
       payload,
     })
+    toast.success('Shipment created successfully.')
     shipmentOrder.value = null
   } catch (error: unknown) {
     const normalized = normalizeApiError(error)
@@ -648,6 +654,7 @@ const onCreateSubmit = async (payload: OrderUpsertPayload) => {
 
   try {
     const response = await createMutation.mutateAsync(payload)
+    toast.success('Order created successfully.')
     await router.push(`/orders/${response.data.id}`)
   } catch (error: unknown) {
     const normalized = normalizeApiError(error)
@@ -669,6 +676,7 @@ const onEditSubmit = async (payload: OrderUpsertPayload) => {
       id: editOrder.value.id,
       payload,
     })
+    toast.success('Order updated successfully.')
     await router.push(`/orders/${response.data.id}`)
   } catch (error: unknown) {
     const normalized = normalizeApiError(error)
