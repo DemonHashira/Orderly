@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Search } from 'lucide-vue-next'
+import { ArrowUpRight, Search } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { useAuth } from '@/features/auth/composables/useAuth'
 import { useInventoryStocksQuery } from '@/features/inventory/composables/useInventoryQueries'
 import InventoryStocksDataTable from '@/features/inventory/ui/InventoryStocksDataTable.vue'
 import { useDebouncedRef } from '@/shared/composables/useDebouncedRef'
@@ -30,8 +31,10 @@ const STOCK_STATUS_OPTIONS = ['all', 'active', 'archived'] as const
 const route = useRoute()
 const router = useRouter()
 const listUiStore = useListUiStateStore()
+const { permissions } = useAuth()
 const listModule = 'inventory_stocks' as const
 const isSyncingFromRoute = ref(false)
+const canCreateMovement = computed(() => permissions.value.includes('inventory.movement.create'))
 
 const page = computed({
   get: () => listUiStore.modules[listModule].page,
@@ -163,7 +166,16 @@ const openMovementHistory = async (productId: number) => {
     <PageHeader
       title="Inventory Stocks"
       description="Track on-hand, reserved, and available stock with quick movement drill-downs."
-    />
+    >
+      <template #actions>
+        <Button v-if="canCreateMovement" as-child variant="outline" size="sm">
+          <RouterLink to="/inventory/movements" data-test="inventory-stocks-open-movements">
+            <ArrowUpRight data-icon="inline-start" />
+            Record Movement
+          </RouterLink>
+        </Button>
+      </template>
+    </PageHeader>
 
     <Card class="gap-0">
       <CardHeader class="pb-4">

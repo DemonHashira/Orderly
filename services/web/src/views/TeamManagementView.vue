@@ -2,6 +2,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Plus } from 'lucide-vue-next'
+import { toast } from 'vue-sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -69,6 +70,7 @@ const route = useRoute()
 const router = useRouter()
 const listUiStore = useListUiStateStore()
 const { user: currentUser } = useAuth()
+const canManageUsers = usePermission('users.manage')
 const canManageRoles = usePermission('roles.manage')
 const listModule = 'team_users' as const
 const isSyncingFromRoute = ref(false)
@@ -259,6 +261,7 @@ const submitUserForm = async () => {
           ? { role: userForm.value.role }
           : {}),
       })
+      toast.success('Team member created successfully.')
     } else if (editingUserId.value != null) {
       await updateUserMutation.mutateAsync({
         id: editingUserId.value,
@@ -282,6 +285,8 @@ const submitUserForm = async () => {
           role: userForm.value.role,
         })
       }
+
+      toast.success('Team member updated successfully.')
     }
 
     isUserDialogOpen.value = false
@@ -300,6 +305,7 @@ const updateUserStatus = async (targetUser: AdminUser, isActive: boolean) => {
       id: targetUser.id,
       isActive,
     })
+    toast.success(`Team member ${isActive ? 'activated' : 'deactivated'} successfully.`)
   } catch (error: unknown) {
     rowActionError.value = normalizeApiError(error).message
   }
@@ -322,6 +328,7 @@ const applyRoleChange = async (targetUser: AdminUser) => {
       id: targetUser.id,
       role,
     })
+    toast.success('Team role updated successfully.')
   } catch (error: unknown) {
     rowActionError.value = normalizeApiError(error).message
   }
@@ -411,7 +418,12 @@ watch(
       description="Create staff accounts, manage activation, and assign operational roles."
     >
       <template #actions>
-        <Button size="sm" data-test="team-open-create" @click="openCreateDialog">
+        <Button
+          v-if="canManageUsers"
+          size="sm"
+          data-test="team-open-create"
+          @click="openCreateDialog"
+        >
           <Plus data-icon="inline-start" />
           Add Team Member
         </Button>

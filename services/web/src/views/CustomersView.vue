@@ -436,10 +436,11 @@ const onDeleteCustomer = async () => {
       <template #actions>
         <Button
           v-if="canCreateCustomers"
+          size="sm"
           data-test="customers-open-create"
           @click="openCreateDialog"
         >
-          <Plus class="mr-1 size-4" />
+          <Plus data-icon="inline-start" />
           Add Customer
         </Button>
       </template>

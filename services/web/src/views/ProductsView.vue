@@ -568,17 +568,18 @@ const exportWithFormat = async (format: ProductExportFormat) => {
           <Button
             v-if="canImportProducts"
             variant="outline"
+            size="sm"
             data-test="products-open-import"
             @click="importDialogOpen = true"
           >
-            <Upload class="mr-1 size-4" />
+            <Upload data-icon="inline-start" />
             Import CSV/XLSX
           </Button>
 
           <DropdownMenu v-if="canExportProducts">
             <DropdownMenuTrigger as-child>
-              <Button variant="outline" data-test="products-open-export">
-                <Download class="mr-1 size-4" />
+              <Button variant="outline" size="sm" data-test="products-open-export">
+                <Download data-icon="inline-start" />
                 Export
               </Button>
             </DropdownMenuTrigger>
@@ -599,10 +600,11 @@ const exportWithFormat = async (format: ProductExportFormat) => {
 
           <Button
             v-if="canManageProducts"
+            size="sm"
             data-test="products-open-create"
             @click="openCreateDialog"
           >
-            <Plus class="mr-1 size-4" />
+            <Plus data-icon="inline-start" />
             Create Product
           </Button>
         </div>

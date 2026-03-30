@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { AlertCircle, Plus, Search } from 'lucide-vue-next'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Plus, Search } from 'lucide-vue-next'
+import { toast } from 'vue-sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -56,7 +56,6 @@ const listModule = 'inventory_movements' as const
 const isSyncingFromRoute = ref(false)
 const MOVEMENT_TYPE_FILTER_OPTIONS = ['all', ...INVENTORY_MOVEMENT_TYPE_OPTIONS] as const
 
-const movementSuccessMessage = ref('')
 const createDialogOpen = ref(false)
 const createFieldErrors = ref<Record<string, string>>({})
 const createSubmitError = ref('')
@@ -340,7 +339,6 @@ const mapFieldErrors = (errors?: Record<string, string[]>) => {
 }
 
 const submitMovement = async () => {
-  movementSuccessMessage.value = ''
   createFieldErrors.value = {}
   createSubmitError.value = ''
 
@@ -391,7 +389,7 @@ const submitMovement = async () => {
       reason,
     })
 
-    movementSuccessMessage.value = 'Manual inventory movement created successfully.'
+    toast.success('Manual inventory movement created successfully.')
     createDialogOpen.value = false
   } catch (error: unknown) {
     const normalized = normalizeApiError(error)
@@ -425,10 +423,11 @@ const quantityHint = computed(() => {
       <template #actions>
         <Button
           v-if="canCreateMovement"
+          size="sm"
           data-test="inventory-open-create-dialog"
           @click="createDialogOpen = true"
         >
-          <Plus class="mr-1 size-4" />
+          <Plus data-icon="inline-start" />
           Create Movement
         </Button>
       </template>
@@ -503,12 +502,6 @@ const quantityHint = computed(() => {
       v-if="movementsQuery.error.value"
       message="Failed to load inventory movements."
     />
-
-    <Alert v-if="movementSuccessMessage">
-      <AlertCircle />
-      <AlertTitle>Movement created</AlertTitle>
-      <AlertDescription>{{ movementSuccessMessage }}</AlertDescription>
-    </Alert>
 
     <EmptyStateCard
       v-if="!movementsQuery.isLoading.value && movements.length === 0"

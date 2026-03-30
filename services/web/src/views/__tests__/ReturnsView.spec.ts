@@ -266,6 +266,31 @@ describe('ReturnsView', () => {
     expect(withPermission.wrapper.find('[data-test="returns-table-restock"]').exists()).toBe(true)
   })
 
+  it('shows the restock queue shortcut for return viewers', async () => {
+    authState.permissions = []
+    const withoutPermission = await mountView('/returns')
+    expect(
+      withoutPermission.wrapper.find('[data-test="returns-open-restock-queue"]').exists(),
+    ).toBe(false)
+
+    authState.permissions = ['returns.view']
+    const withPermission = await mountView('/returns')
+    expect(withPermission.wrapper.find('[data-test="returns-open-restock-queue"]').exists()).toBe(
+      true,
+    )
+  })
+
+  it('applies the restockable queue filter from the header shortcut', async () => {
+    const { wrapper, router, pinia } = await mountView('/returns')
+    const listUiStore = useListUiStateStore(pinia)
+
+    await wrapper.get('[data-test="returns-open-restock-queue"]').trigger('click')
+    await flushPromises()
+
+    expect(listUiStore.modules.returns.status).toBe('restockable')
+    expect(router.currentRoute.value.query.status).toBe('restockable')
+  })
+
   it('runs restock mutation after confirmation', async () => {
     authState.permissions = ['returns.view', 'returns.restock']
     const { wrapper } = await mountView('/returns')

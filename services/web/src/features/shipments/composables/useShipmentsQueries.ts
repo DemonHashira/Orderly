@@ -1,6 +1,6 @@
 import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { dashboardKeys, ordersKeys, shipmentsKeys } from '@/lib/query-keys'
+import { dashboardKeys, ordersKeys, reportsKeys, shipmentsKeys } from '@/lib/query-keys'
 import {
   createShipment,
   fetchShipment,
@@ -49,6 +49,7 @@ export const useCreateShipmentMutation = () => {
       void queryClient.invalidateQueries({ queryKey: ordersKeys.all })
       void queryClient.invalidateQueries({ queryKey: ordersKeys.detail(variables.orderId) })
       void queryClient.invalidateQueries({ queryKey: dashboardKeys.all })
+      void queryClient.invalidateQueries({ queryKey: reportsKeys.all })
     },
   })
 }
@@ -62,6 +63,7 @@ const useShipmentStatusMutation = (mutationFn: (id: number) => Promise<unknown>)
       void queryClient.invalidateQueries({ queryKey: shipmentsKeys.detail(shipmentId) })
       void queryClient.invalidateQueries({ queryKey: ordersKeys.all })
       void queryClient.invalidateQueries({ queryKey: dashboardKeys.all })
+      void queryClient.invalidateQueries({ queryKey: reportsKeys.all })
     },
   })
 }

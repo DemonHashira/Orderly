@@ -38,6 +38,7 @@ const rolesData = ref({
   data: [{ name: 'Owner' }, { name: 'Order Manager' }],
 })
 
+const canManageUsers = ref(true)
 const canManageRoles = ref(true)
 
 vi.mock('@/features/admin-users/composables/useAdminUsersQueries', () => ({
@@ -78,11 +79,13 @@ vi.mock('@/features/auth/composables/useAuth', () => ({
 }))
 
 vi.mock('@/features/auth/composables/usePermission', () => ({
-  usePermission: () => computed(() => canManageRoles.value),
+  usePermission: (permission: string) =>
+    computed(() => (permission === 'users.manage' ? canManageUsers.value : canManageRoles.value)),
 }))
 
 describe('TeamManagementView', () => {
   beforeEach(() => {
+    canManageUsers.value = true
     canManageRoles.value = true
   })
 
@@ -114,5 +117,12 @@ describe('TeamManagementView', () => {
 
     expect(wrapper.findAll('[role="combobox"]').length).toBe(0)
     expect(wrapper.text()).toContain('Owner')
+  })
+
+  it('hides the create action when users.manage permission is missing', async () => {
+    canManageUsers.value = false
+    const wrapper = await mountView()
+
+    expect(wrapper.find('[data-test="team-open-create"]').exists()).toBe(false)
   })
 })

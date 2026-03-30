@@ -37,6 +37,16 @@ const shipmentsState = vi.hoisted(() => ({
   byOrderId: {} as Record<number, Record<string, unknown>>,
 }))
 
+const toastState = vi.hoisted(() => ({
+  success: vi.fn(),
+}))
+
+vi.mock('vue-sonner', () => ({
+  toast: {
+    success: toastState.success,
+  },
+}))
+
 vi.mock('@/features/auth/composables/useAuth', () => ({
   useAuth: () => ({
     permissions: computed(() => authState.permissions),
@@ -172,6 +182,7 @@ describe('OrdersView', () => {
         id: 401,
       },
     })
+    toastState.success.mockReset()
   })
 
   const mountView = async (path = '/orders') => {
@@ -270,6 +281,14 @@ describe('OrdersView', () => {
     expect(blockedPermission.wrapper.text()).not.toContain('Create Shipment')
   })
 
+  it('shows a loading body when detail dialog opens before order data is ready', async () => {
+    ordersState.detail = null
+
+    const { wrapper } = await mountView('/orders/101')
+
+    expect(wrapper.text()).toContain('Loading order...')
+  })
+
   it('validates and submits shipment payload from orders row action', async () => {
     authState.permissions = ['shipments.create']
     const { wrapper } = await mountView('/orders')
@@ -336,5 +355,37 @@ describe('OrdersView', () => {
         shipped_at: '2026-03-08',
       }),
     })
+  })
+
+  it('shows an updated toast when editing an existing shipment', async () => {
+    authState.permissions = ['shipments.create']
+    ordersState.list = [
+      {
+        ...ordersState.list[0]!,
+        current_status: 'shipped',
+      },
+    ]
+    shipmentsState.byOrderId = {
+      101: {
+        id: 501,
+        order_id: 101,
+        courier: 'Speedy',
+        tracking_number: 'TRK-EXISTING',
+        shipped_at: '2026-03-08T10:30:00Z',
+        delivered_at: null,
+        created_at: '2026-03-08T10:30:00Z',
+        updated_at: '2026-03-08T10:30:00Z',
+      },
+    }
+
+    const { wrapper } = await mountView('/orders')
+    await wrapper.get('[data-test="orders-table-create-shipment"]').trigger('click')
+    await flushPromises()
+
+    await wrapper.get('#shipment-courier').setValue('Econt')
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(toastState.success).toHaveBeenCalledWith('Shipment updated successfully.')
   })
 })

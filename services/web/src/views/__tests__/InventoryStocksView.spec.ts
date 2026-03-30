@@ -1,10 +1,14 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { computed, ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { createPinia } from 'pinia'
 import InventoryStocksView from '@/views/InventoryStocksView.vue'
 import { useListUiStateStore } from '@/stores/list-ui-state'
+
+const authState = vi.hoisted(() => ({
+  permissions: [] as string[],
+}))
 
 const inventoryState = vi.hoisted(() => ({
   stocks: [
@@ -20,6 +24,12 @@ const inventoryState = vi.hoisted(() => ({
       available: 16,
     },
   ],
+}))
+
+vi.mock('@/features/auth/composables/useAuth', () => ({
+  useAuth: () => ({
+    permissions: computed(() => authState.permissions),
+  }),
 }))
 
 vi.mock('@/features/inventory/composables/useInventoryQueries', () => ({
@@ -54,6 +64,10 @@ const InventoryStocksDataTableStub = {
 }
 
 describe('InventoryStocksView', () => {
+  beforeEach(() => {
+    authState.permissions = []
+  })
+
   afterEach(() => {
     vi.useRealTimers()
   })
@@ -142,6 +156,29 @@ describe('InventoryStocksView', () => {
 
     expect(router.currentRoute.value.path).toBe('/inventory/movements')
     expect(router.currentRoute.value.query.product_id).toBe('301')
+  })
+
+  it('shows the record movement shortcut only with inventory.movement.create permission', async () => {
+    const withoutPermission = await mountView()
+    expect(
+      withoutPermission.wrapper.find('[data-test="inventory-stocks-open-movements"]').exists(),
+    ).toBe(false)
+
+    authState.permissions = ['inventory.movement.create']
+    const withPermission = await mountView()
+    expect(
+      withPermission.wrapper.find('[data-test="inventory-stocks-open-movements"]').exists(),
+    ).toBe(true)
+  })
+
+  it('routes the header shortcut to the movements workspace', async () => {
+    authState.permissions = ['inventory.movement.create']
+    const { wrapper, router } = await mountView()
+
+    await wrapper.get('[data-test="inventory-stocks-open-movements"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.path).toBe('/inventory/movements')
   })
 
   it('syncs per-page changes to route query', async () => {

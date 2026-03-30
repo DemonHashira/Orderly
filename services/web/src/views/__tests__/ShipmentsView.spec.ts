@@ -109,6 +109,7 @@ describe('ShipmentsView', () => {
       history: createMemoryHistory(),
       routes: [
         { path: '/shipments', name: 'shipments', component: ShipmentsView },
+        { path: '/orders', name: 'orders', component: { template: '<div />' } },
         { path: '/shipments/:id', name: 'shipment-detail', component: { template: '<div />' } },
       ],
     })
@@ -180,6 +181,30 @@ describe('ShipmentsView', () => {
     expect(allActions.wrapper.find('[data-test="shipments-mark-delivered-11"]').exists()).toBe(true)
     expect(allActions.wrapper.find('[data-test="shipments-mark-returned-11"]').exists()).toBe(true)
     expect(allActions.wrapper.find('[data-test="shipments-mark-unpaid-11"]').exists()).toBe(true)
+  })
+
+  it('shows the ready orders shortcut only with orders.view permission', async () => {
+    const withoutPermission = await mountView()
+    expect(
+      withoutPermission.wrapper.find('[data-test="shipments-open-ready-orders"]').exists(),
+    ).toBe(false)
+
+    authState.permissions = ['orders.view']
+    const withPermission = await mountView()
+    expect(withPermission.wrapper.find('[data-test="shipments-open-ready-orders"]').exists()).toBe(
+      true,
+    )
+  })
+
+  it('routes the header shortcut to ready-to-ship orders', async () => {
+    authState.permissions = ['orders.view']
+    const { wrapper, router } = await mountView()
+
+    await wrapper.get('[data-test="shipments-open-ready-orders"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.path).toBe('/orders')
+    expect(router.currentRoute.value.query.status).toBe('ready_to_ship')
   })
 
   it('runs delivered mutation after confirmation', async () => {

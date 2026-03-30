@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Search } from 'lucide-vue-next'
+import { ArrowUpRight, Search } from 'lucide-vue-next'
+import { toast } from 'vue-sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -114,6 +115,7 @@ const debouncedCourier = useDebouncedRef(courierInput)
 const canMarkDelivered = computed(() => permissions.value.includes('shipments.outcome.delivered'))
 const canMarkReturned = computed(() => permissions.value.includes('shipments.outcome.returned'))
 const canMarkUnpaid = computed(() => permissions.value.includes('shipments.outcome.unpaid'))
+const canOpenOrdersWorkspace = computed(() => permissions.value.includes('orders.view'))
 
 const shipmentsQuery = useShipmentsQuery(
   computed(() => ({
@@ -296,10 +298,13 @@ const onConfirmAction = async () => {
   try {
     if (pendingAction.value.type === 'delivered') {
       await deliveredMutation.mutateAsync(pendingAction.value.shipmentId)
+      toast.success('Shipment marked as delivered.')
     } else if (pendingAction.value.type === 'returned') {
       await returnedMutation.mutateAsync(pendingAction.value.shipmentId)
+      toast.success('Shipment marked as returned and return flow opened.')
     } else {
       await unpaidMutation.mutateAsync(pendingAction.value.shipmentId)
+      toast.success('Shipment marked as unpaid and return flow opened.')
     }
 
     pendingAction.value = null
@@ -355,7 +360,19 @@ const closeShipmentDialog = async () => {
 
   <section v-else class="relative space-y-4">
     <PageRefetchOverlay :show="isRefreshing" />
-    <PageHeader title="Shipments" description="Track deliveries and manage shipment outcomes." />
+    <PageHeader title="Shipments" description="Track deliveries and manage shipment outcomes.">
+      <template #actions>
+        <Button v-if="canOpenOrdersWorkspace" as-child variant="outline" size="sm">
+          <RouterLink
+            :to="{ path: '/orders', query: { status: 'ready_to_ship' } }"
+            data-test="shipments-open-ready-orders"
+          >
+            <ArrowUpRight data-icon="inline-start" />
+            Open Ready Orders
+          </RouterLink>
+        </Button>
+      </template>
+    </PageHeader>
 
     <Card class="gap-0">
       <CardHeader class="pb-4">

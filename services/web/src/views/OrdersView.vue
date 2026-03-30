@@ -246,6 +246,10 @@ const isEditDialogLoading = computed(
     editOrderQuery.isLoading.value || customersQuery.isLoading.value || lookupQuery.isLoading.value,
 )
 const isDetailDialogLoading = computed(() => detailOrderQuery.isLoading.value)
+const shouldShowDetailDialogLoading = computed(
+  () =>
+    isDetailDialogLoading.value || (!detailOrderQuery.error.value && !detailOrderForDialog.value),
+)
 
 const orders = computed(() => ordersQuery.data.value?.data ?? [])
 const meta = computed(() => ordersQuery.data.value?.meta)
@@ -639,7 +643,9 @@ const onShipmentSubmit = async () => {
       orderId: shipmentOrder.value.id,
       payload,
     })
-    toast.success('Shipment created successfully.')
+    toast.success(
+      isUpdatingShipment ? 'Shipment updated successfully.' : 'Shipment created successfully.',
+    )
     shipmentOrder.value = null
   } catch (error: unknown) {
     const normalized = normalizeApiError(error)
@@ -864,11 +870,11 @@ const closeOrderDialog = async () => {
           <DialogDescription>Inspect order data, items, and status history.</DialogDescription>
         </DialogHeader>
         <ApiErrorAlert
-          v-if="!isDetailDialogLoading && detailOrderQuery.error.value"
+          v-if="!shouldShowDetailDialogLoading && detailOrderQuery.error.value"
           message="Failed to load this order."
         />
         <div
-          v-else-if="isDetailDialogLoading"
+          v-else-if="shouldShowDetailDialogLoading"
           class="py-8 text-center text-sm text-muted-foreground"
         >
           Loading order...
@@ -883,27 +889,27 @@ const closeOrderDialog = async () => {
                 >
               </CardHeader>
               <CardContent class="space-y-2 text-sm">
-                <div class="inline-flex items-center gap-2">
+                <div class="flex flex-wrap items-center gap-3">
                   <span class="font-medium">Status:</span>
                   <StatusBadge :status="detailOrderForDialog.current_status" />
+                  <Button
+                    v-if="
+                      canCreateShipment &&
+                      canOpenShipmentForStatus(detailOrderForDialog.current_status)
+                    "
+                    size="sm"
+                    variant="outline"
+                    class="w-fit"
+                    :data-test="`order-detail-create-shipment-${detailOrderForDialog.id}`"
+                    @click="openShipmentDialogFromDetail"
+                  >
+                    {{
+                      detailOrderForDialog.current_status === 'ready_to_ship'
+                        ? 'Create Shipment'
+                        : 'Update Shipment'
+                    }}
+                  </Button>
                 </div>
-                <Button
-                  v-if="
-                    canCreateShipment &&
-                    canOpenShipmentForStatus(detailOrderForDialog.current_status)
-                  "
-                  size="sm"
-                  variant="outline"
-                  class="w-fit"
-                  :data-test="`order-detail-create-shipment-${detailOrderForDialog.id}`"
-                  @click="openShipmentDialogFromDetail"
-                >
-                  {{
-                    detailOrderForDialog.current_status === 'ready_to_ship'
-                      ? 'Create Shipment'
-                      : 'Update Shipment'
-                  }}
-                </Button>
                 <p>
                   <span class="font-medium">Customer ID:</span>
                   {{ detailOrderForDialog.customer_id }}

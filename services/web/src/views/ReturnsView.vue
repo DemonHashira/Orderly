@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { AlertCircle, Plus, Search } from 'lucide-vue-next'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { ArrowUpRight, Plus, Search } from 'lucide-vue-next'
+import { toast } from 'vue-sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -95,7 +95,6 @@ const listModule = 'returns' as const
 const isSyncingFromRoute = ref(false)
 
 const mutationError = ref('')
-const restockNotice = ref('')
 const addItemFieldErrors = ref<Record<string, string>>({})
 const addItemSubmitError = ref('')
 const pendingRestockReturnId = ref<number | null>(null)
@@ -398,7 +397,6 @@ const mapFieldErrors = (errors?: Record<string, string[]>) => {
 
 const openRestockDialog = (returnId: number) => {
   mutationError.value = ''
-  restockNotice.value = ''
   pendingRestockReturnId.value = returnId
 }
 
@@ -411,8 +409,7 @@ const onConfirmRestock = async () => {
 
   try {
     await restockMutation.mutateAsync(pendingRestockReturnId.value)
-    restockNotice.value =
-      'Restock request completed. This action is idempotent: already-restocked items are skipped.'
+    toast.success('Return restocked successfully.')
     pendingRestockReturnId.value = null
   } catch (error: unknown) {
     mutationError.value = normalizeApiError(error).message
@@ -471,6 +468,7 @@ const onAddItemSubmit = async () => {
     })
 
     addItemForm.value.quantity = '1'
+    toast.success('Return item added successfully.')
   } catch (error: unknown) {
     const normalized = normalizeApiError(error)
     addItemFieldErrors.value = mapFieldErrors(normalized.fieldErrors)
@@ -516,6 +514,10 @@ const resetFilters = () => {
   page.value = 1
 }
 
+const openRestockQueue = () => {
+  restockableFilter.value = 'restockable'
+}
+
 const restockableText = (value: boolean) => (value ? 'Yes' : 'No')
 </script>
 
@@ -524,7 +526,20 @@ const restockableText = (value: boolean) => (value ? 'Yes' : 'No')
 
   <section v-else class="relative space-y-4">
     <PageRefetchOverlay :show="isRefreshing" />
-    <PageHeader title="Returns" description="Manage return records and restock decisions." />
+    <PageHeader title="Returns" description="Manage return records and restock decisions.">
+      <template #actions>
+        <Button
+          v-if="permissions.includes('returns.view')"
+          variant="outline"
+          size="sm"
+          data-test="returns-open-restock-queue"
+          @click="openRestockQueue"
+        >
+          <ArrowUpRight data-icon="inline-start" />
+          Restock Queue
+        </Button>
+      </template>
+    </PageHeader>
 
     <Card class="gap-0">
       <CardHeader class="pb-4">
@@ -577,11 +592,6 @@ const restockableText = (value: boolean) => (value ? 'Yes' : 'No')
     </Card>
 
     <ApiErrorAlert v-if="returnsQuery.error.value" message="Failed to load returns." />
-    <Alert v-if="restockNotice">
-      <AlertCircle />
-      <AlertTitle>Restock Completed</AlertTitle>
-      <AlertDescription>{{ restockNotice }}</AlertDescription>
-    </Alert>
     <ApiErrorAlert v-if="mutationError" :message="mutationError" />
 
     <EmptyStateCard
