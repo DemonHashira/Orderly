@@ -39,6 +39,19 @@ final class InventoryStockController extends Controller
             }
         }
 
+        $stockCondition = trim((string) $request->query('stock_condition', ''));
+        if ($stockCondition !== '') {
+            match ($stockCondition) {
+                'low_stock' => $query
+                    ->whereNotNull('reorder_threshold')
+                    ->whereColumn('qty_on_hand', '<=', 'reorder_threshold'),
+                'out_of_stock' => $query->whereRaw('(qty_on_hand - qty_reserved) <= 0'),
+                'reserved' => $query->where('qty_reserved', '>', 0),
+                'available' => $query->whereRaw('(qty_on_hand - qty_reserved) > 0'),
+                default => null,
+            };
+        }
+
         $perPage = (int) $request->query('per_page', 15);
         $perPage = max(1, min($perPage, 100));
 

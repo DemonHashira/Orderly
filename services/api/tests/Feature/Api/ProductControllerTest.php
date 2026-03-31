@@ -89,9 +89,9 @@ test('show returns product for same organization and 404 for cross organization'
         ->assertStatus(404);
 });
 
-test('create product is allowed for inventory manager and normalizes sku', function () {
+test('owner can create product and normalize sku', function () {
     $organization = Organization::factory()->create();
-    $user = createProductApiUser($organization->id, 'Inventory Manager');
+    $user = createProductApiUser($organization->id, 'Owner');
 
     Sanctum::actingAs($user);
 
@@ -127,7 +127,7 @@ test('create product is allowed for inventory manager and normalizes sku', funct
 
 test('create rejects prohibited organization_id payload', function () {
     $organization = Organization::factory()->create();
-    $user = createProductApiUser($organization->id, 'Inventory Manager');
+    $user = createProductApiUser($organization->id, 'Owner');
 
     Sanctum::actingAs($user);
 
@@ -165,9 +165,9 @@ test('create and update require products.manage permission', function () {
         ->assertStatus(403);
 });
 
-test('patch performs partial update and sku normalization', function () {
+test('owner can patch product and normalize sku', function () {
     $organization = Organization::factory()->create();
-    $user = createProductApiUser($organization->id, 'Inventory Manager');
+    $user = createProductApiUser($organization->id, 'Owner');
 
     $product = Product::factory()->create([
         'organization_id' => $organization->id,
@@ -197,7 +197,7 @@ test('patch performs partial update and sku normalization', function () {
 
 test('create rejects case insensitive duplicate sku within organization', function () {
     $organization = Organization::factory()->create();
-    $user = createProductApiUser($organization->id, 'Inventory Manager');
+    $user = createProductApiUser($organization->id, 'Owner');
 
     Product::factory()->create([
         'organization_id' => $organization->id,
@@ -217,7 +217,7 @@ test('create rejects case insensitive duplicate sku within organization', functi
 
 test('archive endpoint sets is_active false and is idempotent', function () {
     $organization = Organization::factory()->create();
-    $user = createProductApiUser($organization->id, 'Inventory Manager');
+    $user = createProductApiUser($organization->id, 'Owner');
 
     $product = Product::factory()->create([
         'organization_id' => $organization->id,
@@ -252,6 +252,31 @@ test('index and show require products.view permission', function () {
 
     $this->getJson('/api/products')->assertStatus(403);
     $this->getJson('/api/products/'.$product->id)->assertStatus(403);
+});
+
+test('inventory manager is read only for product catalog mutations', function () {
+    $organization = Organization::factory()->create();
+    $user = createProductApiUser($organization->id, 'Inventory Manager');
+
+    $product = Product::factory()->create([
+        'organization_id' => $organization->id,
+        'sku' => 'INV-READONLY',
+    ]);
+
+    Sanctum::actingAs($user);
+
+    $this->postJson('/api/products', [
+        'sku' => 'INV-NEW',
+        'name' => 'Should Fail',
+        'sale_price' => '19.99',
+    ])->assertStatus(403);
+
+    $this->patchJson('/api/products/'.$product->id, [
+        'name' => 'Should Fail',
+    ])->assertStatus(403);
+
+    $this->postJson('/api/products/'.$product->id.'/archive')
+        ->assertStatus(403);
 });
 
 test('products manage permission can view a same-organization product for edit flows', function () {

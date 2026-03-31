@@ -68,6 +68,7 @@ final class ProductImportService
         ];
 
         $seenSkusInFile = [];
+        $validatedRows = [];
 
         foreach ($dataRows as $entry) {
             $rowNumber = (int) $entry['row_number'];
@@ -88,19 +89,34 @@ final class ProductImportService
 
             $normalizedSku = $this->normalizeSku((string) $row['sku']);
             $seenSkusInFile[$normalizedSku] = true;
-
-            $persisted = $this->upsertProduct($organizationId, $row, $productsBySku[$normalizedSku] ?? null);
-
-            if ($persisted['action'] === 'created') {
-                $summary['created']++;
-                $productsBySku[$normalizedSku] = $persisted['product'];
-            }
-
-            if ($persisted['action'] === 'updated') {
-                $summary['updated']++;
-                $productsBySku[$normalizedSku] = $persisted['product'];
-            }
+            $validatedRows[] = [
+                'normalized_sku' => $normalizedSku,
+                'row' => $row,
+            ];
         }
+
+        if ($summary['failed'] > 0) {
+            return $summary;
+        }
+
+        DB::transaction(function () use ($organizationId, &$summary, &$productsBySku, $validatedRows): void {
+            foreach ($validatedRows as $entry) {
+                $normalizedSku = $entry['normalized_sku'];
+                $row = $entry['row'];
+
+                $persisted = $this->upsertProduct($organizationId, $row, $productsBySku[$normalizedSku] ?? null);
+
+                if ($persisted['action'] === 'created') {
+                    $summary['created']++;
+                    $productsBySku[$normalizedSku] = $persisted['product'];
+                }
+
+                if ($persisted['action'] === 'updated') {
+                    $summary['updated']++;
+                    $productsBySku[$normalizedSku] = $persisted['product'];
+                }
+            }
+        });
 
         return $summary;
     }

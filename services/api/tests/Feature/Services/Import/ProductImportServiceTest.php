@@ -90,7 +90,33 @@ test('service returns first validation issue only for a row', function () {
     $summary = app(ProductImportService::class)->import($file, $organization->id);
 
     expect($summary['failed'])->toBe(1)
+        ->and($summary['created'])->toBe(0)
+        ->and($summary['updated'])->toBe(0)
         ->and($summary['errors'][0]['message'])->toBe('sku is required.');
+});
+
+test('service does not persist any rows when one row fails validation', function () {
+    $organization = Organization::factory()->create();
+
+    $file = UploadedFile::fake()->createWithContent('products.csv', makeServiceCsvContent(
+        headers: ['sku', 'name', 'sale_price'],
+        rows: [
+            ['GOOD-1', 'Valid Product', '10.00'],
+            ['GOOD-1', 'Duplicate Product', '12.00'],
+        ],
+    ));
+
+    $summary = app(ProductImportService::class)->import($file, $organization->id);
+
+    expect($summary['created'])->toBe(0)
+        ->and($summary['updated'])->toBe(0)
+        ->and($summary['failed'])->toBe(1)
+        ->and($summary['errors'][0]['message'])->toBe('Duplicate SKU in file: GOOD-1');
+
+    $this->assertDatabaseMissing('products', [
+        'organization_id' => $organization->id,
+        'sku' => 'GOOD-1',
+    ]);
 });
 
 test('service normalizes decimal precision for sale_price', function () {

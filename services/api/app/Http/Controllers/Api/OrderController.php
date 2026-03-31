@@ -38,7 +38,7 @@ final class OrderController extends Controller
 
         $orgId = (int) $request->user()->organization_id;
 
-        $query = Order::query()->forOrg($orgId);
+        $query = Order::query()->forOrg($orgId)->with(['customer', 'salesChannel']);
 
         $search = trim((string) $request->query('q', ''));
         if ($search !== '') {
@@ -84,6 +84,8 @@ final class OrderController extends Controller
         $orderModel = Order::query()
             ->forOrg((int) $request->user()->organization_id)
             ->with([
+                'customer',
+                'salesChannel',
                 'items',
                 'statusHistory' => fn ($query) => $query->latest('id'),
             ])
@@ -138,6 +140,8 @@ final class OrderController extends Controller
             ]);
 
             return $order->refresh()->load([
+                'customer',
+                'salesChannel',
                 'items',
                 'statusHistory' => fn ($query) => $query->latest('id'),
             ]);
@@ -152,7 +156,8 @@ final class OrderController extends Controller
     {
         $orderModel = Order::query()
             ->forOrg((int) $request->user()->organization_id)
-            ->with(['items'])
+            ->with(['salesChannel', 'items'])
+            ->with('customer')
             ->findOrFail($order);
 
         Gate::authorize('update', $orderModel);
@@ -198,6 +203,8 @@ final class OrderController extends Controller
             $this->pricingService->recalculateOrderTotals($orderModel->refresh());
 
             return $orderModel->refresh()->load([
+                'customer',
+                'salesChannel',
                 'items',
                 'statusHistory' => fn ($query) => $query->latest('id'),
             ]);
@@ -285,6 +292,8 @@ final class OrderController extends Controller
 
         $orderModel = $this->workflowService->transition($orderModel->id, $toStatus, $actorUserId)
             ->load([
+                'customer',
+                'salesChannel',
                 'items',
                 'statusHistory' => fn ($query) => $query->latest('id'),
             ]);

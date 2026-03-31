@@ -170,13 +170,13 @@ test('logistics manager is view only for returns', function () {
     $this->postJson('/api/returns/'.$returnOrder->id.'/restock')->assertStatus(403);
 });
 
-test('inventory manager can restock but cannot add item', function () {
+test('inventory manager can add item and restock return', function () {
     $organization = Organization::factory()->create();
     $owner = createReturnApiUserWithRole($organization->id, 'Owner');
     $inventory = createReturnApiUserWithRole($organization->id, 'Inventory Manager');
 
     [$order, $product] = createReturnedOrderWithItem($organization, $owner, 2);
-    $returnOrder = createReturnForOrder($order, $product, quantity: 1, restockable: true);
+    $returnOrder = ReturnOrder::factory()->create(['order_id' => $order->id]);
 
     InventoryStock::factory()->create([
         'organization_id' => $organization->id,
@@ -191,9 +191,20 @@ test('inventory manager can restock but cannot add item', function () {
         'product_id' => $product->id,
         'quantity' => 1,
         'restockable' => true,
-    ])->assertStatus(403);
+    ])
+        ->assertStatus(200)
+        ->assertJsonCount(1, 'data.items');
 
-    $this->postJson('/api/returns/'.$returnOrder->id.'/restock')->assertStatus(200);
+    $this->postJson('/api/returns/'.$returnOrder->id.'/restock')
+        ->assertStatus(200)
+        ->assertJsonPath('data.id', $returnOrder->id);
+
+    $this->assertDatabaseHas('inventory_movements', [
+        'reference_type' => 'Return',
+        'reference_id' => $returnOrder->id,
+        'type' => 'return',
+        'qty_delta' => 1,
+    ]);
 });
 
 test('order manager is view-only for returns', function () {
@@ -296,6 +307,32 @@ test('restock is idempotent and does not duplicate movements', function () {
         ->where('reference_id', $returnOrder->id)
         ->where('type', 'return')
         ->count())->toBe(1);
+});
+
+test('restock marks return as processed and removes it from the restock queue filter', function () {
+    $organization = Organization::factory()->create();
+    $owner = createReturnApiUserWithRole($organization->id, 'Owner');
+
+    [$order, $product] = createReturnedOrderWithItem($organization, $owner, 1);
+    $returnOrder = createReturnForOrder($order, $product, quantity: 1, restockable: true);
+
+    InventoryStock::factory()->create([
+        'organization_id' => $organization->id,
+        'product_id' => $product->id,
+        'qty_on_hand' => 5,
+        'qty_reserved' => 0,
+    ]);
+
+    Sanctum::actingAs($owner);
+
+    $this->postJson('/api/returns/'.$returnOrder->id.'/restock')
+        ->assertStatus(200)
+        ->assertJsonPath('data.id', $returnOrder->id)
+        ->assertJsonPath('data.restocked_at', fn ($value) => is_string($value) && $value !== '');
+
+    $this->getJson('/api/returns?has_restockable=1')
+        ->assertStatus(200)
+        ->assertJsonCount(0, 'data');
 });
 
 function createReturnApiUserWithRole(int $organizationId, string $role): User

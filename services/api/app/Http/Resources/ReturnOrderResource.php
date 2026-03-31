@@ -14,6 +14,7 @@ final class ReturnOrderResource extends JsonResource
             'order_id' => (int) $this->order_id,
             'reason' => $this->reason,
             'returned_at' => $this->returned_at?->toISOString(),
+            'restocked_at' => $this->restocked_at?->toISOString(),
             'order' => $this->whenLoaded('order', fn (): array => [
                 'id' => (int) $this->order->id,
                 'reference' => (string) $this->order->reference,

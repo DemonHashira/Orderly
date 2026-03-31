@@ -5,6 +5,7 @@ use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use Spatie\Permission\Models\Permission;
 
 uses(RefreshDatabase::class);
 
@@ -110,6 +111,11 @@ test('role assignment validates allowed role values', function () {
         'role' => 'Supervisor',
     ])->assertStatus(422)
         ->assertJsonValidationErrors('role');
+});
+
+test('role seeder keeps inventory reporting under the shared reports namespace', function () {
+    expect(Permission::query()->where('name', 'reports.inventory.view')->exists())->toBeTrue()
+        ->and(Permission::query()->where('name', 'inventory.report.view')->exists())->toBeFalse();
 });
 
 function createRoleAdminUserWithRole(int $organizationId, string $role): User

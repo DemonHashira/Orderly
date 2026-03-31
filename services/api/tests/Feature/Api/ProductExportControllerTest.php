@@ -14,9 +14,9 @@ beforeEach(function (): void {
     $this->seed(RoleSeeder::class);
 });
 
-test('csv export succeeds for inventory manager', function () {
+test('csv export succeeds for owner', function () {
     $organization = Organization::factory()->create();
-    $user = createProductExportUser($organization->id, 'Inventory Manager');
+    $user = createProductExportUser($organization->id, 'Owner');
 
     Product::factory()->create([
         'organization_id' => $organization->id,
@@ -35,9 +35,9 @@ test('csv export succeeds for inventory manager', function () {
         ->and(readDownloadedFileContent($response))->toContain('ABC-1');
 });
 
-test('xlsx export succeeds for inventory manager', function () {
+test('xlsx export succeeds for owner', function () {
     $organization = Organization::factory()->create();
-    $user = createProductExportUser($organization->id, 'Inventory Manager');
+    $user = createProductExportUser($organization->id, 'Owner');
 
     Product::factory()->create([
         'organization_id' => $organization->id,
@@ -58,7 +58,7 @@ test('export is tenant scoped', function () {
     $organization = Organization::factory()->create();
     $otherOrganization = Organization::factory()->create();
 
-    $user = createProductExportUser($organization->id, 'Inventory Manager');
+    $user = createProductExportUser($organization->id, 'Owner');
 
     Product::factory()->create([
         'organization_id' => $organization->id,
@@ -87,7 +87,7 @@ test('export is tenant scoped', function () {
 
 test('export filters by is_active and q', function () {
     $organization = Organization::factory()->create();
-    $user = createProductExportUser($organization->id, 'Inventory Manager');
+    $user = createProductExportUser($organization->id, 'Owner');
 
     Product::factory()->create([
         'organization_id' => $organization->id,
@@ -128,13 +128,23 @@ test('export permission is enforced', function () {
 
 test('invalid export format returns 422', function () {
     $organization = Organization::factory()->create();
-    $user = createProductExportUser($organization->id, 'Inventory Manager');
+    $user = createProductExportUser($organization->id, 'Owner');
 
     Sanctum::actingAs($user);
 
     $this->get('/api/products/export?format=pdf', ['Accept' => 'application/json'])
         ->assertStatus(422)
         ->assertJsonValidationErrors(['format']);
+});
+
+test('inventory manager cannot export products', function () {
+    $organization = Organization::factory()->create();
+    $user = createProductExportUser($organization->id, 'Inventory Manager');
+
+    Sanctum::actingAs($user);
+
+    $this->get('/api/products/export?format=csv', ['Accept' => 'application/json'])
+        ->assertStatus(403);
 });
 
 function createProductExportUser(int $organizationId, string $role): User

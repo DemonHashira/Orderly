@@ -83,6 +83,98 @@ test('stocks index is tenant scoped and supports q and is_active filters', funct
         ]);
 });
 
+test('stocks index supports stock condition filters and combines them with product status', function () {
+    $organization = Organization::factory()->create();
+    $user = createInventoryApiUserWithRole($organization->id, 'Inventory Manager');
+
+    $lowStockProduct = Product::factory()->create([
+        'organization_id' => $organization->id,
+        'sku' => 'LOW-100',
+        'name' => 'Low Stock Figure',
+        'is_active' => true,
+    ]);
+    InventoryStock::factory()->create([
+        'organization_id' => $organization->id,
+        'product_id' => $lowStockProduct->id,
+        'qty_on_hand' => 5,
+        'qty_reserved' => 1,
+        'reorder_threshold' => 5,
+    ]);
+
+    $outOfStockProduct = Product::factory()->create([
+        'organization_id' => $organization->id,
+        'sku' => 'OUT-100',
+        'name' => 'Out Of Stock Figure',
+        'is_active' => true,
+    ]);
+    InventoryStock::factory()->create([
+        'organization_id' => $organization->id,
+        'product_id' => $outOfStockProduct->id,
+        'qty_on_hand' => 2,
+        'qty_reserved' => 2,
+        'reorder_threshold' => 10,
+    ]);
+
+    $reservedArchivedProduct = Product::factory()->create([
+        'organization_id' => $organization->id,
+        'sku' => 'RES-100',
+        'name' => 'Reserved Archived Figure',
+        'is_active' => false,
+    ]);
+    InventoryStock::factory()->create([
+        'organization_id' => $organization->id,
+        'product_id' => $reservedArchivedProduct->id,
+        'qty_on_hand' => 9,
+        'qty_reserved' => 3,
+        'reorder_threshold' => null,
+    ]);
+
+    $availableProduct = Product::factory()->create([
+        'organization_id' => $organization->id,
+        'sku' => 'AVL-100',
+        'name' => 'Available Figure',
+        'is_active' => true,
+    ]);
+    InventoryStock::factory()->create([
+        'organization_id' => $organization->id,
+        'product_id' => $availableProduct->id,
+        'qty_on_hand' => 14,
+        'qty_reserved' => 1,
+        'reorder_threshold' => 4,
+    ]);
+
+    Sanctum::actingAs($user);
+
+    $this->getJson('/api/inventory/stocks?stock_condition=low_stock')
+        ->assertOk()
+        ->assertJsonCount(2, 'data');
+
+    $this->getJson('/api/inventory/stocks?stock_condition=out_of_stock')
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.product.id', $outOfStockProduct->id);
+
+    $this->getJson('/api/inventory/stocks?stock_condition=reserved&is_active=0')
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.product.id', $reservedArchivedProduct->id);
+
+    $this->getJson('/api/inventory/stocks?stock_condition=available&is_active=1')
+        ->assertOk()
+        ->assertJsonCount(2, 'data');
+});
+
+test('stocks index rejects invalid stock condition filters', function () {
+    $organization = Organization::factory()->create();
+    $user = createInventoryApiUserWithRole($organization->id, 'Inventory Manager');
+
+    Sanctum::actingAs($user);
+
+    $this->getJson('/api/inventory/stocks?stock_condition=unknown')
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['stock_condition']);
+});
+
 test('stocks and movements index require inventory view permission', function () {
     $organization = Organization::factory()->create();
     $user = User::factory()->create(['organization_id' => $organization->id]);

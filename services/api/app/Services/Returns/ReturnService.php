@@ -106,16 +106,26 @@ final readonly class ReturnService
                     'restockable' => $existing->restockable && $restockable,
                 ])->save();
 
+                if ($restockable && $returnOrder->restocked_at !== null) {
+                    $returnOrder->forceFill(['restocked_at' => null])->save();
+                }
+
                 return $existing->refresh();
             }
 
             // Create a new return item
-            return ReturnItem::query()->create([
+            $returnItem = ReturnItem::query()->create([
                 'return_id' => $returnOrder->id,
                 'product_id' => $productId,
                 'quantity' => $quantity,
                 'restockable' => $restockable,
             ]);
+
+            if ($restockable && $returnOrder->restocked_at !== null) {
+                $returnOrder->forceFill(['restocked_at' => null])->save();
+            }
+
+            return $returnItem;
         });
     }
 
@@ -130,6 +140,10 @@ final readonly class ReturnService
 
             // Restock restockable items back to inventory
             $this->inventory->restockFromReturn($returnOrder, $actorUserId);
+
+            if ($returnOrder->restocked_at === null) {
+                $returnOrder->forceFill(['restocked_at' => now()])->save();
+            }
 
             return $returnOrder->refresh();
         });

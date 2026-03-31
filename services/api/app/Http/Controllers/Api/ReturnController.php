@@ -52,10 +52,16 @@ final class ReturnController extends Controller
         if ($request->filled('has_restockable')) {
             $hasRestockable = filter_var($request->query('has_restockable'), FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
             if ($hasRestockable === true) {
-                $query->whereHas('items', fn ($builder) => $builder->where('restockable', true));
+                $query
+                    ->whereNull('restocked_at')
+                    ->whereHas('items', fn ($builder) => $builder->where('restockable', true));
             }
             if ($hasRestockable === false) {
-                $query->whereDoesntHave('items', fn ($builder) => $builder->where('restockable', true));
+                $query->where(function ($builder): void {
+                    $builder
+                        ->whereNotNull('restocked_at')
+                        ->orWhereDoesntHave('items', fn ($items) => $items->where('restockable', true));
+                });
             }
         }
 

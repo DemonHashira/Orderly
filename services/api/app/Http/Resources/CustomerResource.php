@@ -14,6 +14,7 @@ final class CustomerResource extends JsonResource
             $this->middle_name,
             $this->last_name,
         ])));
+        $address = $this->relationLoaded('defaultAddress') ? $this->defaultAddress : null;
 
         return [
             'id' => $this->id,
@@ -23,6 +24,13 @@ final class CustomerResource extends JsonResource
             'last_name' => $this->last_name,
             'email' => $this->email,
             'phone' => $this->phone,
+            'address' => $address ? [
+                'country' => $address->country,
+                'city' => $address->city,
+                'postal_code' => $address->postal_code,
+                'address_line1' => $address->address_line1,
+                'address_line2' => $address->address_line2,
+            ] : null,
         ];
     }
 }

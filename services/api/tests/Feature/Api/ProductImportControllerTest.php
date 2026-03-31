@@ -16,7 +16,7 @@ beforeEach(function (): void {
 
 test('valid import creates products and normalizes sku', function () {
     $organization = Organization::factory()->create();
-    $user = createProductImportUser($organization->id, 'Inventory Manager');
+    $user = createProductImportUser($organization->id, 'Owner');
 
     Sanctum::actingAs($user);
 
@@ -66,7 +66,7 @@ test('valid import creates products and normalizes sku', function () {
 
 test('import updates existing sku in same organization', function () {
     $organization = Organization::factory()->create();
-    $user = createProductImportUser($organization->id, 'Inventory Manager');
+    $user = createProductImportUser($organization->id, 'Owner');
 
     Product::factory()->create([
         'organization_id' => $organization->id,
@@ -113,7 +113,7 @@ test('import updates existing sku in same organization', function () {
 
 test('duplicate sku in same file is rejected case-insensitively', function () {
     $organization = Organization::factory()->create();
-    $user = createProductImportUser($organization->id, 'Inventory Manager');
+    $user = createProductImportUser($organization->id, 'Owner');
 
     Sanctum::actingAs($user);
 
@@ -128,16 +128,22 @@ test('duplicate sku in same file is rejected case-insensitively', function () {
     $this->post('/api/products/import', ['file' => $file], ['Accept' => 'application/json'])
         ->assertOk()
         ->assertJsonPath('total_rows', 2)
-        ->assertJsonPath('created', 1)
+        ->assertJsonPath('created', 0)
         ->assertJsonPath('updated', 0)
         ->assertJsonPath('failed', 1)
         ->assertJsonPath('errors.0.row', 3)
         ->assertJsonPath('errors.0.message', 'Duplicate SKU in file: ABC-1');
+
+    $this->assertDatabaseMissing('products', [
+        'organization_id' => $organization->id,
+        'sku' => 'ABC-1',
+        'name' => 'Product A',
+    ]);
 });
 
 test('missing required headers returns 422 before row processing', function () {
     $organization = Organization::factory()->create();
-    $user = createProductImportUser($organization->id, 'Inventory Manager');
+    $user = createProductImportUser($organization->id, 'Owner');
 
     Sanctum::actingAs($user);
 
@@ -155,7 +161,7 @@ test('missing required headers returns 422 before row processing', function () {
 
 test('row limit over 5000 returns 422', function () {
     $organization = Organization::factory()->create();
-    $user = createProductImportUser($organization->id, 'Inventory Manager');
+    $user = createProductImportUser($organization->id, 'Owner');
 
     Sanctum::actingAs($user);
 
@@ -178,7 +184,7 @@ test('import is tenant scoped when same sku exists in another organization', fun
     $organization = Organization::factory()->create();
     $otherOrganization = Organization::factory()->create();
 
-    $user = createProductImportUser($organization->id, 'Inventory Manager');
+    $user = createProductImportUser($organization->id, 'Owner');
 
     Product::factory()->create([
         'organization_id' => $otherOrganization->id,
@@ -233,7 +239,7 @@ test('permission is enforced for import', function () {
 
 test('invalid file validation returns 422', function () {
     $organization = Organization::factory()->create();
-    $user = createProductImportUser($organization->id, 'Inventory Manager');
+    $user = createProductImportUser($organization->id, 'Owner');
 
     Sanctum::actingAs($user);
 
@@ -246,7 +252,7 @@ test('invalid file validation returns 422', function () {
 
 test('import row error returns first validation issue only', function () {
     $organization = Organization::factory()->create();
-    $user = createProductImportUser($organization->id, 'Inventory Manager');
+    $user = createProductImportUser($organization->id, 'Owner');
 
     Sanctum::actingAs($user);
 
@@ -259,8 +265,27 @@ test('import row error returns first validation issue only', function () {
 
     $this->post('/api/products/import', ['file' => $file], ['Accept' => 'application/json'])
         ->assertOk()
+        ->assertJsonPath('created', 0)
+        ->assertJsonPath('updated', 0)
         ->assertJsonPath('failed', 1)
         ->assertJsonPath('errors.0.message', 'sku is required.');
+});
+
+test('inventory manager cannot import products', function () {
+    $organization = Organization::factory()->create();
+    $user = createProductImportUser($organization->id, 'Inventory Manager');
+
+    Sanctum::actingAs($user);
+
+    $file = UploadedFile::fake()->createWithContent('products.csv', makeCsvContent(
+        headers: ['sku', 'name', 'sale_price'],
+        rows: [
+            ['ABC-1', 'Product A', '5.00'],
+        ],
+    ));
+
+    $this->post('/api/products/import', ['file' => $file], ['Accept' => 'application/json'])
+        ->assertStatus(403);
 });
 
 function createProductImportUser(int $organizationId, string $role): User

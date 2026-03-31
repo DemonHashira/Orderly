@@ -142,6 +142,15 @@ test('create shipment is idempotent', function () {
         ])->count())->toBe(1);
 });
 
+function makeShipmentService(): ShipmentService
+{
+    $inventory = new InventoryLedgerService;
+    $workflow = new OrderWorkflowService($inventory);
+    $returns = new ReturnService($inventory);
+
+    return new ShipmentService($workflow, $returns);
+}
+
 test('create shipment is idempotent and does not double sale movement', function () {
     $order = createOrderWithItem(quantity: 2, status: OrderStatus::ReadyToShip->value);
 
@@ -173,6 +182,7 @@ test('create shipment is idempotent and does not double sale movement', function
             ->where('type', 'sale')
             ->count())->toBe(1);
 
+    // Call again (already shipped) — should not create another sale movement or decrement stock again
     $second = $service->createShipment(
         orderId: $order->id,
         actorUserId: $order->created_by,
@@ -195,12 +205,3 @@ test('create shipment is idempotent and does not double sale movement', function
         ->and($second->tracking_number)->toBe('TRACK456');
 
 });
-
-function makeShipmentService(): ShipmentService
-{
-    $inventory = new InventoryLedgerService;
-    $workflow = new OrderWorkflowService($inventory);
-    $returns = new ReturnService($inventory);
-
-    return new ShipmentService($workflow, $returns);
-}

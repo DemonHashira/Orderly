@@ -8,7 +8,9 @@ use App\Models\OrderItem;
 use App\Models\OrderStatusHistory;
 use App\Models\Organization;
 use App\Models\Product;
+use App\Models\ReturnOrder;
 use App\Models\SalesChannel;
+use App\Models\Shipment;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -19,6 +21,15 @@ uses(RefreshDatabase::class);
 beforeEach(function (): void {
     $this->seed(RoleSeeder::class);
 });
+
+function displayNameForCustomer(Customer $customer): string
+{
+    return trim(implode(' ', array_filter([
+        $customer->first_name,
+        $customer->middle_name,
+        $customer->last_name,
+    ])));
+}
 
 test('index returns paginated organization orders and supports filters', function () {
     $organization = Organization::factory()->create();
@@ -64,7 +75,83 @@ test('index returns paginated organization orders and supports filters', functio
         ->assertStatus(200)
         ->assertJsonCount(1, 'data')
         ->assertJsonPath('data.0.id', $matchingOrder->id)
+        ->assertJsonPath('data.0.customer_name', displayNameForCustomer($customer))
+        ->assertJsonPath('data.0.sales_channel_name', $channel->name)
         ->assertJsonMissingPath('data.0.status_history');
+});
+
+test('index filters by customer channel and created date range', function () {
+    $organization = Organization::factory()->create();
+    $user = createOrderApiUserWithRole($organization->id, 'Order Manager');
+    $matchingCustomer = Customer::factory()->create(['organization_id' => $organization->id]);
+    $otherCustomer = Customer::factory()->create(['organization_id' => $organization->id]);
+    $matchingChannel = SalesChannel::factory()->create();
+    $otherChannel = SalesChannel::factory()->create();
+
+    $matchingOrder = Order::factory()->create([
+        'organization_id' => $organization->id,
+        'customer_id' => $matchingCustomer->id,
+        'sales_channel_id' => $matchingChannel->id,
+        'created_by' => $user->id,
+        'reference' => 'ORD-FILTER-001',
+        'current_status' => OrderStatus::Draft->value,
+        'created_at' => '2026-02-10 10:00:00',
+    ]);
+
+    Order::factory()->create([
+        'organization_id' => $organization->id,
+        'customer_id' => $otherCustomer->id,
+        'sales_channel_id' => $matchingChannel->id,
+        'created_by' => $user->id,
+        'reference' => 'ORD-FILTER-002',
+        'current_status' => OrderStatus::Draft->value,
+        'created_at' => '2026-02-10 10:00:00',
+    ]);
+
+    Order::factory()->create([
+        'organization_id' => $organization->id,
+        'customer_id' => $matchingCustomer->id,
+        'sales_channel_id' => $otherChannel->id,
+        'created_by' => $user->id,
+        'reference' => 'ORD-FILTER-003',
+        'current_status' => OrderStatus::Draft->value,
+        'created_at' => '2026-02-10 10:00:00',
+    ]);
+
+    Order::factory()->create([
+        'organization_id' => $organization->id,
+        'customer_id' => $matchingCustomer->id,
+        'sales_channel_id' => $matchingChannel->id,
+        'created_by' => $user->id,
+        'reference' => 'ORD-FILTER-004',
+        'current_status' => OrderStatus::Draft->value,
+        'created_at' => '2026-03-10 10:00:00',
+    ]);
+
+    Sanctum::actingAs($user);
+
+    $response = $this->getJson(
+        '/api/orders?customer_id='.$matchingCustomer->id
+        .'&sales_channel_id='.$matchingChannel->id
+        .'&created_from=2026-02-01'
+        .'&created_to=2026-02-28',
+    );
+
+    $response
+        ->assertSuccessful()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.id', $matchingOrder->id);
+});
+
+test('index validates status and per page query params', function () {
+    $organization = Organization::factory()->create();
+    $user = createOrderApiUserWithRole($organization->id, 'Order Manager');
+
+    Sanctum::actingAs($user);
+
+    $this->getJson('/api/orders?status=not-a-real-status&per_page=101')
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['status', 'per_page']);
 });
 
 test('show returns order details with status history for same organization', function () {
@@ -91,6 +178,8 @@ test('show returns order details with status history for same organization', fun
     $this->getJson('/api/orders/'.$order->id)
         ->assertStatus(200)
         ->assertJsonPath('data.id', $order->id)
+        ->assertJsonPath('data.customer_name', displayNameForCustomer($order->customer))
+        ->assertJsonPath('data.sales_channel_name', $order->salesChannel->name)
         ->assertJsonCount(1, 'data.items')
         ->assertJsonCount(1, 'data.status_history');
 });
@@ -363,6 +452,69 @@ test('update returns 404 for cross organization order', function () {
     ])->assertStatus(404);
 });
 
+test('update rejects prohibited and invalid item fields', function () {
+    $organization = Organization::factory()->create();
+    $user = createOrderApiUserWithRole($organization->id, 'Order Manager');
+
+    [$order, $product] = createOrderWithSingleItemForOrg($organization, $user, OrderStatus::Draft->value, quantity: 1);
+
+    $customer = Customer::factory()->create(['organization_id' => $organization->id]);
+    $channel = SalesChannel::factory()->create();
+
+    Sanctum::actingAs($user);
+
+    $this->putJson('/api/orders/'.$order->id, [
+        'organization_id' => 999999,
+        'created_by' => 777,
+        'current_status' => OrderStatus::Cancelled->value,
+        'total_amount' => '99.99',
+        'reference' => 'ORD-SPOOFED',
+        'customer_id' => $customer->id,
+        'sales_channel_id' => $channel->id,
+        'items' => [
+            [
+                'product_id' => $product->id,
+                'quantity' => 0,
+                'unit_price' => '10.999',
+            ],
+        ],
+    ])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors([
+            'organization_id',
+            'created_by',
+            'current_status',
+            'total_amount',
+            'reference',
+            'items.0.quantity',
+            'items.0.unit_price',
+        ]);
+});
+
+test('update rejects cross organization customer and product', function () {
+    $organization = Organization::factory()->create();
+    $otherOrganization = Organization::factory()->create();
+    $user = createOrderApiUserWithRole($organization->id, 'Order Manager');
+
+    [$order] = createOrderWithSingleItemForOrg($organization, $user, OrderStatus::Draft->value, quantity: 1);
+
+    $customer = Customer::factory()->create(['organization_id' => $otherOrganization->id]);
+    $channel = SalesChannel::factory()->create();
+    $product = Product::factory()->create(['organization_id' => $otherOrganization->id]);
+
+    Sanctum::actingAs($user);
+
+    $this->putJson('/api/orders/'.$order->id, [
+        'customer_id' => $customer->id,
+        'sales_channel_id' => $channel->id,
+        'items' => [
+            ['product_id' => $product->id, 'quantity' => 1],
+        ],
+    ])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['customer_id', 'items.0.product_id']);
+});
+
 test('order manager can move confirmed order to ready to ship', function () {
     $organization = Organization::factory()->create();
     $user = createOrderApiUserWithRole($organization->id, 'Order Manager');
@@ -374,6 +526,26 @@ test('order manager can move confirmed order to ready to ship', function () {
     $this->postJson('/api/orders/'.$order->id.'/ready-to-ship')
         ->assertStatus(200)
         ->assertJsonPath('data.current_status', OrderStatus::ReadyToShip->value);
+});
+
+test('confirm returns 409 when stock is insufficient', function () {
+    $organization = Organization::factory()->create();
+    $user = createOrderApiUserWithRole($organization->id, 'Order Manager');
+
+    [$order, $product] = createOrderWithSingleItemForOrg($organization, $user, OrderStatus::Draft->value, quantity: 3);
+
+    InventoryStock::factory()->create([
+        'organization_id' => $organization->id,
+        'product_id' => $product->id,
+        'qty_on_hand' => 1,
+        'qty_reserved' => 0,
+    ]);
+
+    Sanctum::actingAs($user);
+
+    $this->postJson('/api/orders/'.$order->id.'/confirm')
+        ->assertStatus(409)
+        ->assertJsonPath('code', 'insufficient_stock');
 });
 
 test('order manager can cancel draft order', function () {
@@ -430,6 +602,43 @@ test('logistics and inventory managers can view orders but cannot mutate', funct
     $this->postJson('/api/orders/'.$order->id.'/cancel')->assertStatus(403);
 });
 
+test('logistics manager cannot confirm or ready orders to ship', function () {
+    $organization = Organization::factory()->create();
+    $owner = createOrderApiUserWithRole($organization->id, 'Owner');
+    $logistics = createOrderApiUserWithRole($organization->id, 'Logistics Manager');
+
+    [$draftOrder, $product] = createOrderWithSingleItemForOrg($organization, $owner, OrderStatus::Draft->value, quantity: 1);
+    [$confirmedOrder] = createOrderWithSingleItemForOrg($organization, $owner, OrderStatus::Confirmed->value, quantity: 1);
+
+    InventoryStock::factory()->create([
+        'organization_id' => $organization->id,
+        'product_id' => $product->id,
+        'qty_on_hand' => 10,
+        'qty_reserved' => 0,
+    ]);
+
+    Sanctum::actingAs($logistics);
+
+    $this->postJson('/api/orders/'.$draftOrder->id.'/confirm')->assertForbidden();
+    $this->postJson('/api/orders/'.$confirmedOrder->id.'/ready-to-ship')->assertForbidden();
+});
+
+test('confirm and ready to ship return 404 for cross organization orders', function () {
+    $organization = Organization::factory()->create();
+    $otherOrganization = Organization::factory()->create();
+
+    $user = createOrderApiUserWithRole($organization->id, 'Order Manager');
+    $otherUser = createOrderApiUserWithRole($otherOrganization->id, 'Owner');
+
+    [$draftOrder] = createOrderWithSingleItemForOrg($otherOrganization, $otherUser, OrderStatus::Draft->value, quantity: 1);
+    [$confirmedOrder] = createOrderWithSingleItemForOrg($otherOrganization, $otherUser, OrderStatus::Confirmed->value, quantity: 1);
+
+    Sanctum::actingAs($user);
+
+    $this->postJson('/api/orders/'.$draftOrder->id.'/confirm')->assertNotFound();
+    $this->postJson('/api/orders/'.$confirmedOrder->id.'/ready-to-ship')->assertNotFound();
+});
+
 test('owner can delete draft order', function () {
     $organization = Organization::factory()->create();
     $owner = createOrderApiUserWithRole($organization->id, 'Owner');
@@ -483,6 +692,34 @@ test('delete returns 404 for cross organization order', function () {
     Sanctum::actingAs($owner);
 
     $this->deleteJson('/api/orders/'.$order->id)->assertStatus(404);
+});
+
+test('delete returns 409 when order has a linked shipment', function () {
+    $organization = Organization::factory()->create();
+    $owner = createOrderApiUserWithRole($organization->id, 'Owner');
+
+    [$order] = createOrderWithSingleItemForOrg($organization, $owner, OrderStatus::Draft->value, quantity: 1);
+    Shipment::factory()->create(['order_id' => $order->id]);
+
+    Sanctum::actingAs($owner);
+
+    $this->deleteJson('/api/orders/'.$order->id)
+        ->assertStatus(409)
+        ->assertJsonPath('code', 'order_delete_not_allowed');
+});
+
+test('delete returns 409 when order has a linked return', function () {
+    $organization = Organization::factory()->create();
+    $owner = createOrderApiUserWithRole($organization->id, 'Owner');
+
+    [$order] = createOrderWithSingleItemForOrg($organization, $owner, OrderStatus::Draft->value, quantity: 1);
+    ReturnOrder::factory()->create(['order_id' => $order->id]);
+
+    Sanctum::actingAs($owner);
+
+    $this->deleteJson('/api/orders/'.$order->id)
+        ->assertStatus(409)
+        ->assertJsonPath('code', 'order_delete_not_allowed');
 });
 
 function createOrderApiUserWithRole(int $organizationId, string $role): User

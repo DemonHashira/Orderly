@@ -125,6 +125,16 @@ test('dashboard requires dashboard.view permission', function () {
     $this->getJson('/api/dashboard')->assertStatus(403);
 });
 
+test('dashboard returns 403 for dashboard users without any report permissions', function () {
+    $organization = Organization::factory()->create();
+    $user = User::factory()->create(['organization_id' => $organization->id]);
+    $user->givePermissionTo(['dashboard.view', 'shipments.view']);
+
+    Sanctum::actingAs($user);
+
+    $this->getJson('/api/dashboard')->assertForbidden();
+});
+
 test('logistics dashboard hides inventory section', function () {
     $organization = Organization::factory()->create();
     $user = createDashboardApiUserWithRole($organization->id, 'Logistics Manager');

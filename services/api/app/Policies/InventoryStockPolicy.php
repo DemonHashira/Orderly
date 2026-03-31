@@ -30,11 +30,6 @@ final class InventoryStockPolicy
         return $this->sameOrg($user, $stock) && $this->hasPermission($user, 'inventory.movement.create');
     }
 
-    public function viewReports(User $user, InventoryStock $stock): bool
-    {
-        return $this->sameOrg($user, $stock) && $this->hasPermission($user, 'inventory.report.view');
-    }
-
     private function hasPermission(User $user, string $permission): bool
     {
         try {

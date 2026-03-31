@@ -16,10 +16,12 @@ class ReturnOrder extends Model
         'order_id',
         'reason',
         'returned_at',
+        'restocked_at',
     ];
 
     protected $casts = [
         'returned_at' => 'datetime',
+        'restocked_at' => 'datetime',
     ];
 
     public function order(): BelongsTo

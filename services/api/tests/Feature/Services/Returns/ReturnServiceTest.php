@@ -145,6 +145,18 @@ test('restock return is idempotent', function () {
         ])->count())->toBe(1);
 });
 
+function createReturnOrderWithItem(Order $order, Product $product, int $quantity, bool $restockable): ReturnOrder
+{
+    $returnOrder = ReturnOrder::factory()->create(['order_id' => $order->id]);
+    $returnOrder->items()->create([
+        'product_id' => $product->id,
+        'quantity' => $quantity,
+        'restockable' => $restockable,
+    ]);
+
+    return $returnOrder;
+}
+
 test('restock return is idempotent and does not double restock', function () {
     $order = createOrderWithItem(quantity: 1, status: OrderStatus::Returned->value);
     $product = $order->items->first()->product;
@@ -170,6 +182,7 @@ test('restock return is idempotent and does not double restock', function () {
 
     $stock->refresh();
 
+    // Expected: only restocked once
     expect($stock->qty_on_hand)->toBe(7)
         ->and(InventoryMovement::query()
             ->where('reference_type', 'Return')
@@ -179,14 +192,21 @@ test('restock return is idempotent and does not double restock', function () {
 
 });
 
-function createReturnOrderWithItem(Order $order, Product $product, int $quantity, bool $restockable): ReturnOrder
-{
-    $returnOrder = ReturnOrder::factory()->create(['order_id' => $order->id]);
-    $returnOrder->items()->create([
+test('restock return marks the return as restocked', function () {
+    $order = createOrderWithItem(quantity: 1, status: OrderStatus::Returned->value);
+    $product = $order->items->first()->product;
+
+    InventoryStock::factory()->create([
+        'organization_id' => $order->organization_id,
         'product_id' => $product->id,
-        'quantity' => $quantity,
-        'restockable' => $restockable,
+        'qty_on_hand' => 5,
+        'qty_reserved' => 0,
     ]);
 
-    return $returnOrder;
-}
+    $returnOrder = createReturnOrderWithItem($order, $product, quantity: 1, restockable: true);
+    $service = new ReturnService(new InventoryLedgerService);
+
+    $service->restockReturn($returnOrder->id, $order->created_by);
+
+    expect($returnOrder->refresh()->restocked_at)->not->toBeNull();
+});

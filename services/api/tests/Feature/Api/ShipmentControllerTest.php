@@ -51,6 +51,43 @@ test('index returns paginated shipments scoped to organization', function () {
         ->assertJsonPath('data.0.order.id', $order->id);
 });
 
+test('index filters shipments by outcome', function () {
+    $organization = Organization::factory()->create();
+    $user = createShipmentApiUserWithRole($organization->id, 'Logistics Manager');
+
+    [$shippedOrder] = createOrderForShipmentApi($organization, $user, OrderStatus::Shipped->value, 1);
+    $shippedShipment = Shipment::factory()->create([
+        'order_id' => $shippedOrder->id,
+        'tracking_number' => 'TRK-SHIPPED',
+    ]);
+
+    [$deliveredOrder] = createOrderForShipmentApi($organization, $user, OrderStatus::Delivered->value, 1);
+    Shipment::factory()->create([
+        'order_id' => $deliveredOrder->id,
+        'tracking_number' => 'TRK-DELIVERED',
+    ]);
+
+    [$returnedOrder] = createOrderForShipmentApi($organization, $user, OrderStatus::Returned->value, 1);
+    Shipment::factory()->create([
+        'order_id' => $returnedOrder->id,
+        'tracking_number' => 'TRK-RETURNED',
+    ]);
+
+    [$unpaidOrder] = createOrderForShipmentApi($organization, $user, OrderStatus::Unpaid->value, 1);
+    Shipment::factory()->create([
+        'order_id' => $unpaidOrder->id,
+        'tracking_number' => 'TRK-UNPAID',
+    ]);
+
+    Sanctum::actingAs($user);
+
+    $this->getJson('/api/shipments?outcome=shipped&per_page=10')
+        ->assertStatus(200)
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.id', $shippedShipment->id)
+        ->assertJsonPath('data.0.order.current_status', OrderStatus::Shipped->value);
+});
+
 test('show returns same-organization shipment', function () {
     $organization = Organization::factory()->create();
     $user = createShipmentApiUserWithRole($organization->id, 'Owner');

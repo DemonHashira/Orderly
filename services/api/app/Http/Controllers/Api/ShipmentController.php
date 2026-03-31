@@ -49,6 +49,11 @@ final class ShipmentController extends Controller
             $query->where('tracking_number', 'like', '%'.$tracking.'%');
         }
 
+        $outcome = trim((string) $request->query('outcome', ''));
+        if ($outcome !== '') {
+            $query->whereHas('order', fn ($builder) => $builder->where('current_status', $outcome));
+        }
+
         if ($request->filled('shipped_from')) {
             $query->whereDate('shipped_at', '>=', (string) $request->query('shipped_from'));
         }

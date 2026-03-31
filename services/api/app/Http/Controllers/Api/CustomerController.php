@@ -7,9 +7,12 @@ use App\Http\Requests\Customers\StoreCustomerRequest;
 use App\Http\Requests\Customers\UpdateCustomerRequest;
 use App\Http\Resources\CustomerResource;
 use App\Models\Customer;
+use App\Models\CustomerAddress;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -21,7 +24,7 @@ final class CustomerController extends Controller
 
         $orgId = (int) $request->user()->organization_id;
 
-        $query = Customer::query()->forOrg($orgId);
+        $query = Customer::query()->with('defaultAddress')->forOrg($orgId);
 
         $search = trim((string) $request->query('q', ''));
         if ($search !== '') {
@@ -56,6 +59,7 @@ final class CustomerController extends Controller
     public function show(Request $request, int $customer): CustomerResource
     {
         $customerModel = Customer::query()
+            ->with('defaultAddress')
             ->forOrg((int) $request->user()->organization_id)
             ->findOrFail($customer);
 
@@ -68,10 +72,18 @@ final class CustomerController extends Controller
     {
         Gate::authorize('create', Customer::class);
 
-        $customer = Customer::query()->create(array_merge(
-            $request->validated(),
-            ['organization_id' => (int) $request->user()->organization_id],
-        ));
+        $customer = DB::transaction(function () use ($request): Customer {
+            $validated = $request->validated();
+
+            $customer = Customer::query()->create(array_merge(
+                Arr::except($validated, ['address']),
+                ['organization_id' => (int) $request->user()->organization_id],
+            ));
+
+            $this->syncCustomerAddress($customer, $validated['address'] ?? null);
+
+            return $customer->load('defaultAddress');
+        });
 
         return new CustomerResource($customer)
             ->response()
@@ -81,12 +93,20 @@ final class CustomerController extends Controller
     public function update(UpdateCustomerRequest $request, int $customer): CustomerResource
     {
         $customerModel = Customer::query()
+            ->with('defaultAddress')
             ->forOrg((int) $request->user()->organization_id)
             ->findOrFail($customer);
 
         Gate::authorize('update', $customerModel);
 
-        $customerModel->update($request->validated());
+        $validated = $request->validated();
+
+        DB::transaction(function () use ($customerModel, $validated): void {
+            $customerModel->update(Arr::except($validated, ['address']));
+            $this->syncCustomerAddress($customerModel, $validated['address'] ?? null);
+        });
+
+        $customerModel->load('defaultAddress');
 
         return new CustomerResource($customerModel);
     }
@@ -102,5 +122,32 @@ final class CustomerController extends Controller
         $customerModel->delete();
 
         return response()->noContent();
+    }
+
+    private function syncCustomerAddress(Customer $customer, ?array $address): void
+    {
+        $defaultAddress = $customer->defaultAddress()->first();
+
+        if ($address === null) {
+            return;
+        }
+
+        $payload = [
+            'label' => null,
+            'country' => $address['country'],
+            'city' => $address['city'],
+            'postal_code' => $address['postal_code'],
+            'address_line1' => $address['address_line1'],
+            'address_line2' => $address['address_line2'] ?? null,
+            'is_default' => true,
+        ];
+
+        if ($defaultAddress instanceof CustomerAddress) {
+            $defaultAddress->update($payload);
+
+            return;
+        }
+
+        $customer->addresses()->create($payload);
     }
 }
