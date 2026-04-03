@@ -35,7 +35,12 @@ const { defineField, errors, handleSubmit, setErrors, values, setFieldValue } = 
   },
 })
 
-const [email, emailAttrs] = defineField('email')
+const [email, emailAttrs] = defineField('email', {
+  validateOnBlur: true,
+  validateOnChange: false,
+  validateOnInput: false,
+  validateOnModelUpdate: false,
+})
 const [password, passwordAttrs] = defineField('password')
 
 const rememberModel = computed({

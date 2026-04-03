@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { Plus, Search } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
@@ -22,6 +22,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import OverlayScrollViewport from '@/components/ui/overlay-scroll/OverlayScrollViewport.vue'
 import {
   Table,
   TableBody,
@@ -39,13 +40,19 @@ import {
   useUpdateCustomerMutation,
 } from '@/features/customers/composables/useCustomersQueries'
 import {
+  CUSTOMER_FORM_FIELDS_TO_VALIDATE,
+  DEFAULT_CUSTOMER_ADDRESS_COUNTRY,
   createEmptyCustomerDialogForm,
   type CustomerDialogForm,
+  type CustomerFormField,
   type CustomerUpsertPayload,
 } from '@/features/customers/types'
 import CustomerForm from '@/features/customers/ui/CustomerForm.vue'
 import CustomersDataTable from '@/features/customers/ui/CustomersDataTable.vue'
-import { validateCustomerDialogForm } from '@/features/customers/validation/customer.schema'
+import {
+  validateCustomerDialogField,
+  validateCustomerDialogForm,
+} from '@/features/customers/validation/customer.schema'
 import { useOrdersQuery } from '@/features/orders/composables/useOrdersQueries'
 import { formatCurrency, formatDateTime } from '@/lib/formatters'
 import { normalizeApiError } from '@/shared/api/errors'
@@ -71,9 +78,23 @@ const isSyncingFromRoute = ref(false)
 
 const customerSubmitError = ref('')
 const customerFieldErrors = ref<Record<string, string>>({})
+const customerServerFieldErrors = ref<Record<string, string>>({})
+const customerClientFieldErrors = ref<Record<string, string>>({})
 const pendingDeleteCustomerId = ref<number | null>(null)
 const persistedDetailCustomer = ref<Customer | null>(null)
 const customerForm = ref(createEmptyCustomerDialogForm())
+const touchedCustomerFields = reactive<Record<CustomerFormField, boolean>>({
+  first_name: false,
+  middle_name: false,
+  last_name: false,
+  phone: false,
+  email: false,
+  'address.country': false,
+  'address.city': false,
+  'address.postal_code': false,
+  'address.address_line1': false,
+  'address.address_line2': false,
+})
 
 const canCreateCustomers = computed(() => permissions.value.includes('customers.create'))
 const canEditCustomers = computed(() => permissions.value.includes('customers.update'))
@@ -165,6 +186,95 @@ const customerDisplayName = (customer: Customer | null) => {
   )
 }
 
+const isAddressField = (field: CustomerFormField): boolean => field.startsWith('address.')
+
+const updateCustomerFieldErrors = () => {
+  customerFieldErrors.value = {
+    ...customerServerFieldErrors.value,
+    ...customerClientFieldErrors.value,
+  }
+}
+
+const getCustomerAddressLines = (customer: Customer | null): string[] => {
+  const address = customer?.address
+
+  if (!address) {
+    return []
+  }
+
+  return [
+    address.address_line1,
+    address.address_line2,
+    [address.city, address.postal_code].filter(Boolean).join(' '),
+    address.country,
+  ]
+    .filter((value) => value && String(value).trim() !== '')
+    .map((value) => String(value))
+}
+
+const resetCustomerFieldValidation = () => {
+  customerFieldErrors.value = {}
+  customerServerFieldErrors.value = {}
+  customerClientFieldErrors.value = {}
+
+  CUSTOMER_FORM_FIELDS_TO_VALIDATE.forEach((field) => {
+    touchedCustomerFields[field] = false
+  })
+}
+
+const setCustomerClientFieldError = (field: CustomerFormField, message: string | null) => {
+  if (message) {
+    customerClientFieldErrors.value[field] = message
+  } else {
+    delete customerClientFieldErrors.value[field]
+  }
+
+  updateCustomerFieldErrors()
+}
+
+const clearCustomerServerFieldError = (field: CustomerFormField) => {
+  if (!customerServerFieldErrors.value[field]) {
+    return
+  }
+
+  delete customerServerFieldErrors.value[field]
+  customerServerFieldErrors.value = { ...customerServerFieldErrors.value }
+  updateCustomerFieldErrors()
+}
+
+const validateCustomerField = (field: CustomerFormField) => {
+  const message = validateCustomerDialogField(customerForm.value, field)
+  setCustomerClientFieldError(field, message)
+}
+const onCustomerFieldBlur = (field: CustomerFormField) => {
+  touchedCustomerFields[field] = true
+
+  if (isAddressField(field)) {
+    validateCustomerField(field)
+    return
+  }
+
+  validateCustomerField(field)
+}
+
+const onCustomerFieldInput = (field: CustomerFormField) => {
+  clearCustomerServerFieldError(field)
+
+  if (isAddressField(field)) {
+    if (touchedCustomerFields[field]) {
+      validateCustomerField(field)
+    }
+
+    return
+  }
+
+  if (!touchedCustomerFields[field]) {
+    return
+  }
+
+  validateCustomerField(field)
+}
+
 watch(
   detailCustomer,
   (customer) => {
@@ -234,7 +344,7 @@ watch([debouncedSearch, page, perPage], () => {
 watch(
   [isCreateRoute, isEditRoute, detailCustomerForDialog],
   () => {
-    customerFieldErrors.value = {}
+    resetCustomerFieldValidation()
     customerSubmitError.value = ''
 
     if (isCreateRoute.value) {
@@ -249,6 +359,14 @@ watch(
         last_name: detailCustomerForDialog.value.last_name ?? '',
         phone: detailCustomerForDialog.value.phone ?? '',
         email: detailCustomerForDialog.value.email ?? '',
+        address: {
+          country:
+            detailCustomerForDialog.value.address?.country ?? DEFAULT_CUSTOMER_ADDRESS_COUNTRY,
+          city: detailCustomerForDialog.value.address?.city ?? '',
+          postal_code: detailCustomerForDialog.value.address?.postal_code ?? '',
+          address_line1: detailCustomerForDialog.value.address?.address_line1 ?? '',
+          address_line2: detailCustomerForDialog.value.address?.address_line2 ?? '',
+        },
       }
     }
   },
@@ -265,13 +383,22 @@ const mapFieldErrors = (errors?: Record<string, string[]>) => {
   )
 }
 
-const buildCustomerPayload = (form: CustomerDialogForm): CustomerUpsertPayload => ({
-  first_name: form.first_name.trim(),
-  middle_name: form.middle_name.trim() || null,
-  last_name: form.last_name.trim(),
-  phone: form.phone.trim(),
-  email: form.email.trim().toLowerCase(),
-})
+const buildCustomerPayload = (form: CustomerDialogForm): CustomerUpsertPayload => {
+  return {
+    first_name: form.first_name.trim(),
+    middle_name: form.middle_name.trim() || null,
+    last_name: form.last_name.trim(),
+    phone: form.phone.trim(),
+    email: form.email.trim().toLowerCase(),
+    address: {
+      country: form.address.country.trim(),
+      city: form.address.city.trim(),
+      postal_code: form.address.postal_code.trim(),
+      address_line1: form.address.address_line1.trim(),
+      address_line2: form.address.address_line2.trim() || null,
+    },
+  }
+}
 
 const resetFilters = () => {
   searchInput.value = ''
@@ -362,10 +489,16 @@ const submitCustomerForm = async () => {
 
   const clientErrors = validateCustomerDialogForm(customerForm.value)
   if (Object.keys(clientErrors).length > 0) {
-    customerFieldErrors.value = clientErrors
+    customerClientFieldErrors.value = clientErrors
+    updateCustomerFieldErrors()
+    CUSTOMER_FORM_FIELDS_TO_VALIDATE.forEach((field) => {
+      touchedCustomerFields[field] = true
+    })
     return
   }
 
+  customerClientFieldErrors.value = {}
+  customerServerFieldErrors.value = {}
   customerFieldErrors.value = {}
   const payload = buildCustomerPayload(customerForm.value)
 
@@ -394,7 +527,8 @@ const submitCustomerForm = async () => {
     })
   } catch (error: unknown) {
     const normalized = normalizeApiError(error)
-    customerFieldErrors.value = mapFieldErrors(normalized.fieldErrors)
+    customerServerFieldErrors.value = mapFieldErrors(normalized.fieldErrors)
+    updateCustomerFieldErrors()
     customerSubmitError.value = normalized.fieldErrors ? '' : normalized.message
   }
 }
@@ -559,7 +693,7 @@ const onDeleteCustomer = async () => {
 
           <div class="grid gap-3 lg:grid-cols-[315px_minmax(0,1fr)]">
             <Card class="gap-0">
-              <CardHeader class="pb-3">
+              <CardHeader class="pb-3 gap-0">
                 <CardTitle class="text-base">Contact Summary</CardTitle>
               </CardHeader>
               <CardContent class="space-y-2 text-sm">
@@ -581,6 +715,22 @@ const onDeleteCustomer = async () => {
                 <p class="break-all" data-test="customers-detail-email">
                   <span class="font-medium">Email:</span> {{ detailCustomerForDialog.email ?? '-' }}
                 </p>
+                <div data-test="customers-detail-address">
+                  <span class="font-medium">Address:</span>
+                  <div
+                    v-if="getCustomerAddressLines(detailCustomerForDialog).length > 0"
+                    class="mt-1 space-y-0.5"
+                  >
+                    <p
+                      v-for="(line, index) in getCustomerAddressLines(detailCustomerForDialog)"
+                      :key="`${detailCustomerForDialog.id}-address-${index}`"
+                      data-test="customers-detail-address-line"
+                    >
+                      {{ line }}
+                    </p>
+                  </div>
+                  <span v-else> - </span>
+                </div>
               </CardContent>
             </Card>
 
@@ -610,7 +760,11 @@ const onDeleteCustomer = async () => {
                   No orders are currently associated with this customer.
                 </div>
 
-                <div v-else class="rounded-md border">
+                <OverlayScrollViewport
+                  v-else
+                  data-test="customers-order-history-scroll"
+                  class="max-h-[289px] rounded-md border"
+                >
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -642,7 +796,7 @@ const onDeleteCustomer = async () => {
                       </TableRow>
                     </TableBody>
                   </Table>
-                </div>
+                </OverlayScrollViewport>
               </CardContent>
             </Card>
           </div>
@@ -671,6 +825,8 @@ const onDeleteCustomer = async () => {
           :mode="isEditRoute ? 'edit' : 'create'"
           :pending="isCustomerFormPending"
           @cancel="isCustomerFormDialogOpen = false"
+          @field-blur="onCustomerFieldBlur"
+          @field-input="onCustomerFieldInput"
           @submit="submitCustomerForm"
         />
       </DialogContent>

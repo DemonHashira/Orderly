@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Download, Plus, Search, Upload } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
@@ -15,7 +15,6 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -30,7 +29,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -51,9 +49,21 @@ import {
   useProductsQuery,
   useUpdateProductMutation,
 } from '@/features/products/composables/useProductsQueries'
+import { buildSuggestedProductSku } from '@/features/products/sku'
+import {
+  PRODUCT_FORM_FIELDS_TO_VALIDATE,
+  createEmptyProductDialogForm,
+  type ProductDialogForm,
+  type ProductFormField,
+} from '@/features/products/types'
+import ProductForm from '@/features/products/ui/ProductForm.vue'
+import {
+  validateProductDialogField,
+  validateProductDialogForm,
+} from '@/features/products/validation/product.schema'
 import ProductsDataTable from '@/features/products/ui/ProductsDataTable.vue'
 import { formatCurrency, formatDateTime } from '@/lib/formatters'
-import type { ProductExportFormat, ProductImportSummary } from '@/types'
+import type { Product, ProductExportFormat, ProductImportSummary } from '@/types'
 import { normalizeApiError } from '@/shared/api/errors'
 import { useDebouncedRef } from '@/shared/composables/useDebouncedRef'
 import { useInitialLoadingGate } from '@/shared/composables/useInitialLoadingGate'
@@ -78,6 +88,8 @@ const isSyncingFromRoute = ref(false)
 
 const productMutationError = ref('')
 const productFieldErrors = ref<Record<string, string>>({})
+const productServerFieldErrors = ref<Record<string, string>>({})
+const productClientFieldErrors = ref<Record<string, string>>({})
 const pendingArchiveProductId = ref<number | null>(null)
 const importDialogOpen = ref(false)
 const importFile = ref<File | null>(null)
@@ -85,16 +97,15 @@ const importFieldErrors = ref<Record<string, string>>({})
 const importSubmitError = ref('')
 const importSummary = ref<ProductImportSummary | null>(null)
 const exportSubmitError = ref('')
-const persistedDetailProduct = ref<{
-  id: number
-  sku: string
-  name: string
-  sale_price: string
-  description: string | null
-  is_active: boolean
-  created_at: string
-  updated_at: string
-} | null>(null)
+const persistedDetailProduct = ref<Product | null>(null)
+const productForm = ref(createEmptyProductDialogForm())
+const touchedProductFields = reactive<Record<ProductFormField, boolean>>({
+  sku: false,
+  name: false,
+  sale_price: false,
+  description: false,
+  is_active: false,
+})
 
 const page = computed({
   get: () => listUiStore.modules[listModule].page,
@@ -198,13 +209,84 @@ const detailStockSummary = computed(() => {
   )
 })
 
-const productForm = ref({
-  sku: '',
-  name: '',
-  sale_price: '',
-  description: '',
-  is_active: true,
+const resetProductFieldValidation = () => {
+  productFieldErrors.value = {}
+  productServerFieldErrors.value = {}
+  productClientFieldErrors.value = {}
+
+  PRODUCT_FORM_FIELDS_TO_VALIDATE.forEach((field) => {
+    touchedProductFields[field] = false
+  })
+}
+
+const setProductClientFieldError = (field: ProductFormField, message: string | null) => {
+  if (message) {
+    productClientFieldErrors.value[field] = message
+  } else {
+    delete productClientFieldErrors.value[field]
+  }
+
+  productFieldErrors.value = {
+    ...productServerFieldErrors.value,
+    ...productClientFieldErrors.value,
+  }
+}
+
+const clearProductServerFieldError = (field: ProductFormField) => {
+  if (!productServerFieldErrors.value[field]) {
+    return
+  }
+
+  delete productServerFieldErrors.value[field]
+  productServerFieldErrors.value = { ...productServerFieldErrors.value }
+  productFieldErrors.value = {
+    ...productServerFieldErrors.value,
+    ...productClientFieldErrors.value,
+  }
+}
+
+const validateProductField = (field: ProductFormField) => {
+  const message = validateProductDialogField(productForm.value, field)
+  setProductClientFieldError(field, message)
+}
+
+const onProductFieldBlur = (field: ProductFormField) => {
+  touchedProductFields[field] = true
+  validateProductField(field)
+}
+
+const onProductFieldInput = (field: ProductFormField) => {
+  clearProductServerFieldError(field)
+
+  if (!touchedProductFields[field]) {
+    return
+  }
+
+  validateProductField(field)
+}
+
+const buildProductPayload = (form: ProductDialogForm) => ({
+  sku: form.sku.trim().toUpperCase(),
+  name: form.name.trim(),
+  sale_price: String(form.sale_price ?? '').trim(),
+  description: form.description.trim() || null,
+  is_active: form.is_active,
 })
+
+const onGenerateProductSku = () => {
+  const suggestedSku = buildSuggestedProductSku(productForm.value.name)
+  if (!suggestedSku) {
+    return
+  }
+
+  productForm.value = {
+    ...productForm.value,
+    sku: suggestedSku,
+  }
+  touchedProductFields.sku = true
+  clearProductServerFieldError('sku')
+  validateProductField('sku')
+}
 
 watch(
   detailProduct,
@@ -281,22 +363,15 @@ watch([debouncedSearch, statusFilter, page, perPage], () => {
 })
 
 watch([isCreateRoute, isEditRoute, detailProductForDialog], () => {
+  resetProductFieldValidation()
+  productMutationError.value = ''
+
   if (isCreateRoute.value) {
-    productFieldErrors.value = {}
-    productMutationError.value = ''
-    productForm.value = {
-      sku: '',
-      name: '',
-      sale_price: '',
-      description: '',
-      is_active: true,
-    }
+    productForm.value = createEmptyProductDialogForm()
     return
   }
 
   if (isEditRoute.value && detailProductForDialog.value) {
-    productFieldErrors.value = {}
-    productMutationError.value = ''
     productForm.value = {
       sku: detailProductForDialog.value.sku,
       name: detailProductForDialog.value.name,
@@ -432,39 +507,25 @@ const isProductFormPending = computed(
 )
 
 const submitProductForm = async () => {
-  productFieldErrors.value = {}
   productMutationError.value = ''
 
-  const payload = {
-    sku: productForm.value.sku.trim().toUpperCase(),
-    name: productForm.value.name.trim(),
-    sale_price: String(productForm.value.sale_price ?? '').trim(),
-    description: productForm.value.description.trim() || null,
-    is_active: productForm.value.is_active,
-  }
-
-  if (payload.sku.length === 0) {
-    productFieldErrors.value = { sku: 'SKU is required.' }
-    return
-  }
-
-  if (payload.name.length === 0) {
-    productFieldErrors.value = { name: 'Name is required.' }
-    return
-  }
-
-  if (payload.sale_price.length === 0) {
-    productFieldErrors.value = { sale_price: 'Sale price is required.' }
-    return
-  }
-
-  const numericPrice = Number(payload.sale_price)
-  if (!Number.isFinite(numericPrice) || numericPrice < 0) {
+  const clientErrors = validateProductDialogForm(productForm.value)
+  if (Object.keys(clientErrors).length > 0) {
+    productClientFieldErrors.value = clientErrors
     productFieldErrors.value = {
-      sale_price: 'Sale price must be a valid number greater than or equal to 0.',
+      ...productServerFieldErrors.value,
+      ...productClientFieldErrors.value,
     }
+    PRODUCT_FORM_FIELDS_TO_VALIDATE.forEach((field) => {
+      touchedProductFields[field] = true
+    })
     return
   }
+
+  productClientFieldErrors.value = {}
+  productServerFieldErrors.value = {}
+  productFieldErrors.value = {}
+  const payload = buildProductPayload(productForm.value)
 
   try {
     if (isEditRoute.value && detailProductId.value > 0) {
@@ -491,7 +552,11 @@ const submitProductForm = async () => {
     })
   } catch (error: unknown) {
     const normalized = normalizeApiError(error)
-    productFieldErrors.value = mapFieldErrors(normalized.fieldErrors)
+    productServerFieldErrors.value = mapFieldErrors(normalized.fieldErrors)
+    productFieldErrors.value = {
+      ...productServerFieldErrors.value,
+      ...productClientFieldErrors.value,
+    }
     productMutationError.value = normalized.fieldErrors ? '' : normalized.message
   }
 }
@@ -513,8 +578,12 @@ const submitImport = async () => {
 
   try {
     importSummary.value = await importProductsMutation.mutateAsync(importFile.value)
-    toast.success('Product import completed.', {
-      description: `Created ${importSummary.value.created}, updated ${importSummary.value.updated}, failed ${importSummary.value.failed}.`,
+    const hasFailures = importSummary.value.failed > 0
+
+    toast.success(hasFailures ? 'Product import blocked.' : 'Product import completed.', {
+      description: hasFailures
+        ? `No changes were applied because ${importSummary.value.failed} row${importSummary.value.failed === 1 ? '' : 's'} failed validation.`
+        : `Created ${importSummary.value.created}, updated ${importSummary.value.updated}, failed ${importSummary.value.failed}.`,
     })
   } catch (error: unknown) {
     const normalized = normalizeApiError(error)
@@ -732,7 +801,7 @@ const exportWithFormat = async (format: ProductExportFormat) => {
 
           <div class="grid gap-3 md:grid-cols-2">
             <Card class="gap-0">
-              <CardHeader class="pb-3">
+              <CardHeader class="pb-3 gap-0">
                 <CardTitle class="text-base">Catalog Snapshot</CardTitle>
               </CardHeader>
               <CardContent class="space-y-2 text-sm">
@@ -806,92 +875,17 @@ const exportWithFormat = async (format: ProductExportFormat) => {
 
         <ApiErrorAlert v-if="productMutationError" :message="productMutationError" />
 
-        <form
-          class="flex flex-col gap-4"
-          data-test="products-form"
-          @submit.prevent="submitProductForm"
-        >
-          <FieldGroup class="gap-4">
-            <Field>
-              <FieldLabel for="product-sku">SKU</FieldLabel>
-              <Input
-                id="product-sku"
-                v-model="productForm.sku"
-                autocomplete="off"
-                data-test="products-form-sku"
-                :aria-invalid="Boolean(productFieldErrors.sku)"
-              />
-              <FieldError v-if="productFieldErrors.sku" :errors="[productFieldErrors.sku]" />
-            </Field>
-
-            <Field>
-              <FieldLabel for="product-name">Name</FieldLabel>
-              <Input
-                id="product-name"
-                v-model="productForm.name"
-                autocomplete="off"
-                data-test="products-form-name"
-                :aria-invalid="Boolean(productFieldErrors.name)"
-              />
-              <FieldError v-if="productFieldErrors.name" :errors="[productFieldErrors.name]" />
-            </Field>
-
-            <Field>
-              <FieldLabel for="product-sale-price">Sale Price</FieldLabel>
-              <Input
-                id="product-sale-price"
-                v-model="productForm.sale_price"
-                type="number"
-                step="0.01"
-                min="0"
-                inputmode="decimal"
-                data-test="products-form-sale-price"
-                :aria-invalid="Boolean(productFieldErrors.sale_price)"
-              />
-              <FieldError
-                v-if="productFieldErrors.sale_price"
-                :errors="[productFieldErrors.sale_price]"
-              />
-            </Field>
-
-            <Field>
-              <FieldLabel for="product-description">Description</FieldLabel>
-              <Input
-                id="product-description"
-                v-model="productForm.description"
-                autocomplete="off"
-                data-test="products-form-description"
-              />
-              <FieldError
-                v-if="productFieldErrors.description"
-                :errors="[productFieldErrors.description]"
-              />
-            </Field>
-
-            <Field class="gap-2">
-              <label class="flex items-center gap-2 text-sm font-medium">
-                <Checkbox
-                  id="product-active"
-                  v-model="productForm.is_active"
-                  data-test="products-form-active"
-                />
-                Active product
-              </label>
-            </Field>
-          </FieldGroup>
-
-          <div class="flex items-center justify-end gap-2">
-            <Button type="button" variant="outline" @click="isProductFormDialogOpen = false">
-              Cancel
-            </Button>
-            <Button type="submit" :disabled="isProductFormPending" data-test="products-form-submit">
-              <Plus v-if="!isProductFormPending && !isEditRoute" data-icon="inline-start" />
-              {{
-                isProductFormPending ? 'Saving...' : isEditRoute ? 'Save changes' : 'Create product'
-              }}
-            </Button>
-          </div>
-        </form>
+        <ProductForm
+          v-model="productForm"
+          :field-errors="productFieldErrors"
+          :mode="isEditRoute ? 'edit' : 'create'"
+          :pending="isProductFormPending"
+          @cancel="isProductFormDialogOpen = false"
+          @submit="submitProductForm"
+          @field-blur="onProductFieldBlur"
+          @field-input="onProductFieldInput"
+          @generate-sku="onGenerateProductSku"
+        />
       </DialogContent>
     </Dialog>
 
@@ -929,8 +923,14 @@ const exportWithFormat = async (format: ProductExportFormat) => {
           <Alert v-if="importSummary">
             <AlertTitle>Import summary</AlertTitle>
             <AlertDescription>
-              Created {{ importSummary.created }}, updated {{ importSummary.updated }}, failed
-              {{ importSummary.failed }} out of {{ importSummary.total_rows }} rows.
+              <template v-if="importSummary.failed > 0">
+                No changes were applied. {{ importSummary.failed }} out of
+                {{ importSummary.total_rows }} rows failed validation.
+              </template>
+              <template v-else>
+                Created {{ importSummary.created }}, updated {{ importSummary.updated }}, failed
+                {{ importSummary.failed }} out of {{ importSummary.total_rows }} rows.
+              </template>
             </AlertDescription>
           </Alert>
 

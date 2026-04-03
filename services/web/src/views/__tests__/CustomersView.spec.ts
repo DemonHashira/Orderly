@@ -5,6 +5,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import { createPinia } from 'pinia'
 import CustomersView from '@/views/CustomersView.vue'
 import { useListUiStateStore } from '@/stores/list-ui-state'
+import type { Customer, Order } from '@/types'
 
 const authState = vi.hoisted(() => ({
   permissions: [
@@ -26,6 +27,13 @@ const customersState = vi.hoisted(() => ({
       last_name: 'Petrova',
       email: 'mina@example.com',
       phone: '+359888000111',
+      address: {
+        country: 'Bulgaria',
+        city: 'Sofia',
+        postal_code: '1000',
+        address_line1: 'Tsar Osvoboditel 1',
+        address_line2: 'Floor 2',
+      },
     },
     {
       id: 102,
@@ -35,8 +43,9 @@ const customersState = vi.hoisted(() => ({
       last_name: 'Georgiev',
       email: 'ivan@example.com',
       phone: '+359888000222',
+      address: null,
     },
-  ],
+  ] as Customer[],
   detail: {
     id: 101,
     name: 'Mina Petrova',
@@ -45,7 +54,14 @@ const customersState = vi.hoisted(() => ({
     last_name: 'Petrova',
     email: 'mina@example.com',
     phone: '+359888000111',
-  },
+    address: {
+      country: 'Bulgaria',
+      city: 'Sofia',
+      postal_code: '1000',
+      address_line1: 'Tsar Osvoboditel 1',
+      address_line2: 'Floor 2',
+    },
+  } as Customer,
 }))
 
 const ordersState = vi.hoisted(() => ({
@@ -64,7 +80,7 @@ const ordersState = vi.hoisted(() => ({
       items: [],
       status_history: [],
     },
-  ],
+  ] as Order[],
 }))
 
 const mutationState = vi.hoisted(() => ({
@@ -236,6 +252,13 @@ describe('CustomersView', () => {
         last_name: 'Koleva',
         email: 'nina@example.com',
         phone: '+359888000333',
+        address: {
+          country: 'Bulgaria',
+          city: 'Sofia',
+          postal_code: '1000',
+          address_line1: 'Tsar Osvoboditel 1',
+          address_line2: 'Floor 2',
+        },
       },
     })
     mutationState.update = vi.fn().mockResolvedValue({
@@ -393,10 +416,134 @@ describe('CustomersView', () => {
     await wrapper.get('[data-test="customers-form-submit"]').trigger('click')
     await flushPromises()
 
+    expect(mutationState.create).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('City is required.')
+    expect(wrapper.text()).toContain('Postal code is required.')
+    expect(wrapper.text()).toContain('Address line 1 is required.')
+  })
+
+  it('requires address fields before creating a customer', async () => {
+    const { wrapper } = await mountView('/customers/new')
+
+    await wrapper.get('[data-test="customers-form-first-name"]').setValue('Mina')
+    await wrapper.get('[data-test="customers-form-last-name"]').setValue('Petrova')
+    await wrapper.get('[data-test="customers-form-phone"]').setValue('+359888000111')
+    await wrapper.get('[data-test="customers-form-email"]').setValue('mina@example.com')
+    await wrapper.get('[data-test="customers-form-submit"]').trigger('click')
+    await flushPromises()
+
+    expect(mutationState.create).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('City is required.')
+    expect(wrapper.text()).toContain('Postal code is required.')
+    expect(wrapper.text()).toContain('Address line 1 is required.')
+  })
+
+  it('shows server field errors when creating a customer', async () => {
+    mutationState.create = vi.fn().mockRejectedValue({
+      isAxiosError: true,
+      response: {
+        status: 422,
+        data: {
+          message: 'Validation failed.',
+          errors: {
+            email: ['This email is already used by another customer in your organization.'],
+          },
+        },
+      },
+    })
+
+    const { wrapper } = await mountView('/customers/new')
+
+    await wrapper.get('[data-test="customers-form-first-name"]').setValue('Mina')
+    await wrapper.get('[data-test="customers-form-last-name"]').setValue('Petrova')
+    await wrapper.get('[data-test="customers-form-phone"]').setValue('+359888000111')
+    await wrapper.get('[data-test="customers-form-email"]').setValue('mina@example.com')
+    await wrapper.get('[data-test="customers-form-address-city"]').setValue('Sofia')
+    await wrapper.get('[data-test="customers-form-address-postal-code"]').setValue('1000')
+    await wrapper.get('[data-test="customers-form-address-line1"]').setValue('Tsar Osvoboditel 1')
+    await wrapper.get('[data-test="customers-form-submit"]').trigger('click')
+    await flushPromises()
+
     expect(mutationState.create).toHaveBeenCalled()
     expect(wrapper.text()).toContain(
       'This email is already used by another customer in your organization.',
     )
+  })
+
+  it('shows customer field validation on blur before submit', async () => {
+    const { wrapper } = await mountView('/customers/new')
+
+    await wrapper.get('[data-test="customers-form-first-name"]').trigger('blur')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('First name is required.')
+    expect(mutationState.create).not.toHaveBeenCalled()
+
+    await wrapper.get('[data-test="customers-form-first-name"]').setValue('Mina')
+    await wrapper.get('[data-test="customers-form-first-name"]').trigger('blur')
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('First name is required.')
+  })
+
+  it('prefills the address country and validates only the touched address field on blur', async () => {
+    const { wrapper } = await mountView('/customers/new')
+
+    const countryInput = wrapper.get('[data-test="customers-form-address-country"]')
+    expect((countryInput.element as HTMLInputElement).value).toBe('Bulgaria')
+
+    await wrapper.get('[data-test="customers-form-address-postal-code"]').trigger('blur')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Postal code is required.')
+    expect(wrapper.text()).not.toContain('City is required.')
+    expect(wrapper.text()).not.toContain('Address line 1 is required.')
+  })
+
+  it('keeps address validation scoped to each touched field while editing', async () => {
+    const { wrapper } = await mountView('/customers/new')
+
+    await wrapper.get('[data-test="customers-form-address-postal-code"]').trigger('blur')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Postal code is required.')
+    expect(wrapper.text()).not.toContain('City is required.')
+
+    await wrapper.get('[data-test="customers-form-address-postal-code"]').setValue('1000')
+    await wrapper.get('[data-test="customers-form-address-postal-code"]').trigger('blur')
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('Postal code is required.')
+  })
+
+  it('submits a nested address payload when the customer address is complete', async () => {
+    const { wrapper } = await mountView('/customers/new')
+
+    await wrapper.get('[data-test="customers-form-first-name"]').setValue('Mina')
+    await wrapper.get('[data-test="customers-form-last-name"]').setValue('Petrova')
+    await wrapper.get('[data-test="customers-form-phone"]').setValue('+359888000111')
+    await wrapper.get('[data-test="customers-form-email"]').setValue('mina@example.com')
+    await wrapper.get('[data-test="customers-form-address-city"]').setValue('Sofia')
+    await wrapper.get('[data-test="customers-form-address-postal-code"]').setValue('1000')
+    await wrapper.get('[data-test="customers-form-address-line1"]').setValue('Tsar Osvoboditel 1')
+    await wrapper.get('[data-test="customers-form-address-line2"]').setValue('Floor 2')
+    await wrapper.get('[data-test="customers-form-submit"]').trigger('click')
+    await flushPromises()
+
+    expect(mutationState.create).toHaveBeenCalledWith({
+      first_name: 'Mina',
+      middle_name: null,
+      last_name: 'Petrova',
+      phone: '+359888000111',
+      email: 'mina@example.com',
+      address: {
+        country: 'Bulgaria',
+        city: 'Sofia',
+        postal_code: '1000',
+        address_line1: 'Tsar Osvoboditel 1',
+        address_line2: 'Floor 2',
+      },
+    })
   })
 
   it('shows server field errors when editing a customer', async () => {
@@ -443,6 +590,36 @@ describe('CustomersView', () => {
     expect(wrapper.find('[data-test="customers-detail-dialog"]').exists()).toBe(true)
     expect(wrapper.text()).toContain('Mina Petrova')
     expect(wrapper.text()).toContain('ORD-201')
+    const addressLines = wrapper
+      .findAll('[data-test="customers-detail-address-line"]')
+      .map((node) => node.text())
+
+    expect(addressLines).toEqual(['Tsar Osvoboditel 1', 'Floor 2', 'Sofia 1000', 'Bulgaria'])
+  })
+
+  it('caps order history at five visible rows before enabling vertical scrolling', async () => {
+    ordersState.list = Array.from({ length: 6 }, (_, index) => ({
+      id: 201 + index,
+      reference: `ORD-${201 + index}`,
+      customer_id: 101,
+      sales_channel_id: 3,
+      created_by: 1,
+      current_status: index % 2 === 0 ? 'delivered' : 'shipped',
+      total_amount: `${129 + index}.00`,
+      internal_notes: null,
+      created_at: '2026-03-08T10:00:00Z',
+      updated_at: '2026-03-09T10:00:00Z',
+      items: [],
+      status_history: [],
+    }))
+
+    const { wrapper } = await mountView('/customers/101')
+    const scrollViewport = wrapper.find('[data-test="customers-order-history-scroll"]')
+
+    expect(scrollViewport.exists()).toBe(true)
+    expect(wrapper.html()).toContain('data-test="customers-order-history-scroll"')
+    expect(wrapper.html()).toContain('max-h-[289px]')
+    expect(wrapper.text()).toContain('ORD-206')
   })
 
   it('uses a wider contact summary column in the detail dialog', async () => {
