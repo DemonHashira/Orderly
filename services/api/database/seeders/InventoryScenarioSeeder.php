@@ -7,6 +7,8 @@ use App\Models\InventoryStock;
 use App\Models\Organization;
 use App\Models\Product;
 use App\Models\User;
+use Database\Seeders\Support\TenantProductCatalogs;
+use Database\Seeders\Support\TenantSeedPresets;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -14,153 +16,144 @@ use RuntimeException;
 
 class InventoryScenarioSeeder extends Seeder
 {
-    private const array ARCHIVE_SKUS = [
-        'MANGA-JJK-001',
-        'MANGA-AOT-002',
-        'MANGA-SPY-003',
-        'LN-MUSH-001',
-        'LN-REZERO-002',
-        'BOX-AOT-001',
-        'FIG-GOJO-001',
-        'MERCH-POSTER-001',
-    ];
-
     public function run(): void
     {
-        $org = Organization::query()->where('slug', 'otaku-store')->firstOrFail();
+        foreach (TenantSeedPresets::all() as $preset) {
+            $org = Organization::query()->where('slug', $preset['slug'])->firstOrFail();
 
-        $inventoryUserId = User::query()
-            ->where('organization_id', $org->id)
-            ->role('Inventory Manager')
-            ->value('id');
+            $inventoryUserId = User::query()
+                ->where('organization_id', $org->id)
+                ->role('Inventory Manager')
+                ->value('id');
 
-        $stocks = InventoryStock::query()
-            ->where('organization_id', $org->id)
-            ->with('product')
-            ->get()
-            ->filter(fn (InventoryStock $stock): bool => $stock->product !== null)
-            ->values();
+            $stocks = InventoryStock::query()
+                ->where('organization_id', $org->id)
+                ->with('product')
+                ->get()
+                ->filter(fn (InventoryStock $stock): bool => $stock->product !== null)
+                ->values();
 
-        if ($stocks->isEmpty()) {
-            throw new RuntimeException('InventoryScenarioSeeder requires seeded inventory stocks.');
-        }
+            if ($stocks->isEmpty()) {
+                throw new RuntimeException('InventoryScenarioSeeder requires seeded inventory stocks.');
+            }
 
-        $this->repairReservedFloorViolations($stocks, $inventoryUserId);
+            $this->repairReservedFloorViolations($stocks, $inventoryUserId);
 
-        $usedProductIds = [];
+            $usedProductIds = [];
 
-        $reservedCandidates = $stocks
-            ->filter(fn (InventoryStock $stock): bool => $stock->product->is_active && $stock->qty_reserved > 0)
-            ->sortByDesc(fn (InventoryStock $stock): int => $this->available($stock))
-            ->values();
+            $reservedCandidates = $stocks
+                ->filter(fn (InventoryStock $stock): bool => $stock->product->is_active && $stock->qty_reserved > 0)
+                ->sortByDesc(fn (InventoryStock $stock): int => $this->available($stock))
+                ->values();
 
-        if ($reservedCandidates->count() < 2) {
-            throw new RuntimeException('InventoryScenarioSeeder requires at least two reserved stock rows.');
-        }
+            if ($reservedCandidates->count() < 2) {
+                throw new RuntimeException('InventoryScenarioSeeder requires at least two reserved stock rows.');
+            }
 
-        $this->applyTargetAvailableAdjustment(
-            $reservedCandidates[0],
-            0,
-            'Cycle count correction',
-            now()->subDays(5),
-            $inventoryUserId,
-        );
-        $usedProductIds[] = (int) $reservedCandidates[0]->product_id;
+            $this->applyTargetAvailableAdjustment(
+                $reservedCandidates[0],
+                0,
+                'Cycle count correction',
+                now()->subDays(5),
+                $inventoryUserId,
+            );
+            $usedProductIds[] = (int) $reservedCandidates[0]->product_id;
 
-        $this->applyTargetAvailableAdjustment(
-            $reservedCandidates[1],
-            2,
-            'Shelf recount',
-            now()->subDays(11),
-            $inventoryUserId,
-        );
-        $usedProductIds[] = (int) $reservedCandidates[1]->product_id;
+            $this->applyTargetAvailableAdjustment(
+                $reservedCandidates[1],
+                2,
+                'Shelf recount',
+                now()->subDays(11),
+                $inventoryUserId,
+            );
+            $usedProductIds[] = (int) $reservedCandidates[1]->product_id;
 
-        $restockCandidates = $this->selectActiveCandidates(
-            $stocks,
-            $usedProductIds,
-            fn (InventoryStock $stock): bool => $this->available($stock) <= 12,
-            descendingAvailable: false,
-        );
+            $restockCandidates = $this->selectActiveCandidates(
+                $stocks,
+                $usedProductIds,
+                fn (InventoryStock $stock): bool => $this->available($stock) <= 12,
+                descendingAvailable: false,
+            );
 
-        foreach ($this->takeCandidates($restockCandidates, 3) as $index => $stock) {
+            foreach ($this->takeCandidates($restockCandidates, 3) as $index => $stock) {
+                $this->applyMovement(
+                    $stock,
+                    'restock',
+                    [14, 20, 26][$index],
+                    ['Supplier delivery', 'Vendor replenishment', 'Backroom restock'][$index],
+                    now()->subDays([3, 29, 67][$index]),
+                    $inventoryUserId,
+                );
+
+                $usedProductIds[] = (int) $stock->product_id;
+            }
+
+            $damageCandidates = $this->selectActiveCandidates(
+                $stocks,
+                $usedProductIds,
+                fn (InventoryStock $stock): bool => $this->available($stock) >= 6,
+                descendingAvailable: true,
+            );
+
+            foreach ($this->takeCandidates($damageCandidates, 3) as $index => $stock) {
+                $this->applyMovement(
+                    $stock,
+                    'damage',
+                    [-2, -3, -4][$index],
+                    ['Damaged during handling', 'Warehouse damage write-off', 'Packaging failure'][$index],
+                    now()->subDays([7, 23, 52][$index]),
+                    $inventoryUserId,
+                );
+
+                $usedProductIds[] = (int) $stock->product_id;
+            }
+
+            $positiveAdjustment = $this->selectActiveCandidates(
+                $stocks,
+                $usedProductIds,
+                fn (InventoryStock $stock): bool => $this->available($stock) >= 4 && $this->available($stock) <= 40,
+                descendingAvailable: false,
+            )->first();
+
+            if (! $positiveAdjustment instanceof InventoryStock) {
+                throw new RuntimeException('InventoryScenarioSeeder could not find an adjustment-positive candidate.');
+            }
+
             $this->applyMovement(
-                $stock,
-                'restock',
-                [14, 20, 26][$index],
-                ['Supplier delivery', 'Vendor replenishment', 'Backroom restock'][$index],
-                now()->subDays([3, 29, 67][$index]),
+                $positiveAdjustment,
+                'adjustment',
+                4,
+                'Backroom recount',
+                now()->subDays(37),
+                $inventoryUserId,
+            );
+            $usedProductIds[] = (int) $positiveAdjustment->product_id;
+
+            $negativeAdjustment = $this->selectActiveCandidates(
+                $stocks,
+                $usedProductIds,
+                fn (InventoryStock $stock): bool => $this->available($stock) >= 8,
+                descendingAvailable: true,
+            )->first();
+
+            if (! $negativeAdjustment instanceof InventoryStock) {
+                throw new RuntimeException('InventoryScenarioSeeder could not find an adjustment-negative candidate.');
+            }
+
+            $this->applyMovement(
+                $negativeAdjustment,
+                'adjustment',
+                -3,
+                'Cycle count correction',
+                now()->subDays(61),
                 $inventoryUserId,
             );
 
-            $usedProductIds[] = (int) $stock->product_id;
-        }
+            $this->archiveProducts($org->id, TenantProductCatalogs::archiveSkusFor($preset['slug']));
 
-        $damageCandidates = $this->selectActiveCandidates(
-            $stocks,
-            $usedProductIds,
-            fn (InventoryStock $stock): bool => $this->available($stock) >= 6,
-            descendingAvailable: true,
-        );
-
-        foreach ($this->takeCandidates($damageCandidates, 3) as $index => $stock) {
-            $this->applyMovement(
-                $stock,
-                'damage',
-                [-2, -3, -4][$index],
-                ['Damaged during handling', 'Warehouse damage write-off', 'Packaging failure'][$index],
-                now()->subDays([7, 23, 52][$index]),
-                $inventoryUserId,
-            );
-
-            $usedProductIds[] = (int) $stock->product_id;
-        }
-
-        $positiveAdjustment = $this->selectActiveCandidates(
-            $stocks,
-            $usedProductIds,
-            fn (InventoryStock $stock): bool => $this->available($stock) >= 4 && $this->available($stock) <= 40,
-            descendingAvailable: false,
-        )->first();
-
-        if (! $positiveAdjustment instanceof InventoryStock) {
-            throw new RuntimeException('InventoryScenarioSeeder could not find an adjustment-positive candidate.');
-        }
-
-        $this->applyMovement(
-            $positiveAdjustment,
-            'adjustment',
-            4,
-            'Backroom recount',
-            now()->subDays(37),
-            $inventoryUserId,
-        );
-        $usedProductIds[] = (int) $positiveAdjustment->product_id;
-
-        $negativeAdjustment = $this->selectActiveCandidates(
-            $stocks,
-            $usedProductIds,
-            fn (InventoryStock $stock): bool => $this->available($stock) >= 8,
-            descendingAvailable: true,
-        )->first();
-
-        if (! $negativeAdjustment instanceof InventoryStock) {
-            throw new RuntimeException('InventoryScenarioSeeder could not find an adjustment-negative candidate.');
-        }
-
-        $this->applyMovement(
-            $negativeAdjustment,
-            'adjustment',
-            -3,
-            'Cycle count correction',
-            now()->subDays(61),
-            $inventoryUserId,
-        );
-
-        $this->archiveProducts($org->id);
-
-        if (! $this->hasHealthyStockState($stocks)) {
-            throw new RuntimeException('InventoryUiSeeder failed to produce a healthy stock row.');
+            if (! $this->hasHealthyStockState($stocks)) {
+                throw new RuntimeException('InventoryUiSeeder failed to produce a healthy stock row.');
+            }
         }
     }
 
@@ -251,14 +244,17 @@ class InventoryScenarioSeeder extends Seeder
         $stock->qty_on_hand = $newQtyOnHand;
     }
 
-    private function archiveProducts(int $organizationId): void
+    /**
+     * @param  array<int, string>  $archiveSkus
+     */
+    private function archiveProducts(int $organizationId, array $archiveSkus): void
     {
         $archivedCount = Product::query()
             ->where('organization_id', $organizationId)
-            ->whereIn('sku', self::ARCHIVE_SKUS)
+            ->whereIn('sku', $archiveSkus)
             ->update(['is_active' => false]);
 
-        if ($archivedCount !== count(self::ARCHIVE_SKUS)) {
+        if ($archivedCount !== count($archiveSkus)) {
             throw new RuntimeException('InventoryScenarioSeeder could not archive the full deterministic product set.');
         }
     }

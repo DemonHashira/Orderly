@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use RuntimeException;
 
 class DemoOrderFactory
 {
@@ -57,9 +58,13 @@ class DemoOrderFactory
         $order->return()->delete();
     }
 
-    // Create order items from random products
-    public function createOrderItems(Order $order, Collection $products, int $itemCount): Collection
+    // Create order items from random products or a deterministic blueprint
+    public function createOrderItems(Order $order, Collection $products, int $itemCount, array $itemBlueprint = []): Collection
     {
+        if ($itemBlueprint !== []) {
+            return $this->createItemsFromBlueprint($order, $products, $itemBlueprint);
+        }
+
         $picked = $products->shuffle()->take(max(1, $itemCount));
         $rows = collect();
 
@@ -73,6 +78,33 @@ class DemoOrderFactory
                 'quantity' => $qty,
                 'unit_price' => $unitPrice,
                 'total_price' => $qty * $unitPrice,
+            ]));
+        }
+
+        return $rows;
+    }
+
+    private function createItemsFromBlueprint(Order $order, Collection $products, array $itemBlueprint): Collection
+    {
+        $rows = collect();
+
+        foreach ($itemBlueprint as $entry) {
+            $sku = (string) ($entry['sku'] ?? '');
+            $quantity = max(1, (int) ($entry['quantity'] ?? 1));
+            $product = $products->firstWhere('sku', $sku);
+
+            if ($product === null) {
+                throw new RuntimeException("DemoOrderFactory blueprint SKU [{$sku}] was not found.");
+            }
+
+            $unitPrice = (float) $product->sale_price;
+
+            $rows->push(OrderItem::query()->create([
+                'order_id' => $order->id,
+                'product_id' => $product->id,
+                'quantity' => $quantity,
+                'unit_price' => $unitPrice,
+                'total_price' => $quantity * $unitPrice,
             ]));
         }
 

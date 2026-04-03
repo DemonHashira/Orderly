@@ -58,7 +58,6 @@ class RoleSeeder extends Seeder
             // Inventory
             'inventory.view',
             'inventory.movement.create',
-            'inventory.report.view',
             'inventory.return_restock.approve',
 
             // Returns
@@ -144,16 +143,13 @@ class RoleSeeder extends Seeder
         $inventoryManager = [
             'inventory.view',
             'inventory.movement.create',
-            'inventory.report.view',
             'inventory.return_restock.approve',
 
             'products.view',
-            'products.manage',
-            'products.import',
-            'products.export',
             'orders.view',
 
             'returns.view',
+            'returns.item.add',
             'returns.restock',
 
             'reports.view',

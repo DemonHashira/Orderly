@@ -5,6 +5,7 @@ use App\Models\Customer;
 use App\Models\InventoryMovement;
 use App\Models\InventoryStock;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Organization;
 use App\Models\Product;
 use App\Models\ReturnItem;
@@ -205,6 +206,122 @@ test('orders summary groups by current_status only', function () {
         ->assertJsonPath('data.by_status.delivered', 1)
         ->assertJsonPath('data.by_status.draft', 1)
         ->assertJsonMissingPath('data.by_status.pending');
+});
+
+test('report endpoints expose enriched summary sections for ranged requests', function () {
+    $organization = Organization::factory()->create();
+    $user = createReportApiUserWithRole($organization->id, 'Owner');
+    [$customer, $channel] = createOrderContext($organization->id);
+    $websiteChannel = SalesChannel::factory()->create(['name' => 'Website']);
+    $product = Product::factory()->create([
+        'organization_id' => $organization->id,
+        'name' => 'Winter Jacket',
+        'sku' => 'JKT-301',
+    ]);
+
+    $previousOrder = Order::factory()->create([
+        'organization_id' => $organization->id,
+        'customer_id' => $customer->id,
+        'sales_channel_id' => $channel->id,
+        'created_by' => $user->id,
+        'current_status' => OrderStatus::Delivered->value,
+        'total_amount' => '120.00',
+        'created_at' => '2026-03-03 10:00:00',
+    ]);
+    OrderItem::factory()->create([
+        'order_id' => $previousOrder->id,
+        'product_id' => $product->id,
+        'quantity' => 1,
+        'unit_price' => '120.00',
+        'total_price' => '120.00',
+    ]);
+
+    $currentOrder = Order::factory()->create([
+        'organization_id' => $organization->id,
+        'customer_id' => $customer->id,
+        'sales_channel_id' => $websiteChannel->id,
+        'created_by' => $user->id,
+        'reference' => 'ORD-101',
+        'current_status' => OrderStatus::ReadyToShip->value,
+        'total_amount' => '240.00',
+        'created_at' => '2026-03-10 10:00:00',
+    ]);
+    OrderItem::factory()->create([
+        'order_id' => $currentOrder->id,
+        'product_id' => $product->id,
+        'quantity' => 2,
+        'unit_price' => '120.00',
+        'total_price' => '240.00',
+    ]);
+
+    InventoryStock::factory()->create([
+        'organization_id' => $organization->id,
+        'product_id' => $product->id,
+        'qty_on_hand' => 3,
+        'qty_reserved' => 2,
+        'reorder_threshold' => 5,
+    ]);
+    InventoryMovement::factory()->create([
+        'organization_id' => $organization->id,
+        'product_id' => $product->id,
+        'type' => 'restock',
+        'reference_type' => 'Return',
+        'qty_delta' => 7,
+        'created_at' => '2026-03-10 11:00:00',
+    ]);
+
+    $currentReturn = ReturnOrder::factory()->create([
+        'order_id' => $currentOrder->id,
+        'reason' => 'Damaged zipper',
+        'returned_at' => '2026-03-12 12:00:00',
+        'created_at' => '2026-03-12 12:00:00',
+    ]);
+    ReturnItem::factory()->create([
+        'return_id' => $currentReturn->id,
+        'product_id' => $product->id,
+        'quantity' => 2,
+        'restockable' => true,
+    ]);
+    ReturnItem::factory()->create([
+        'return_id' => $currentReturn->id,
+        'product_id' => $product->id,
+        'quantity' => 1,
+        'restockable' => false,
+    ]);
+
+    Sanctum::actingAs($user);
+
+    $this->getJson('/api/reports/orders/summary?from=2026-03-10&to=2026-03-16')
+        ->assertOk()
+        ->assertJsonPath('data.comparison.metrics.total_orders.previous', 1)
+        ->assertJsonPath('data.breakdowns.by_channel.0.label', 'Website')
+        ->assertJsonPath('data.exceptions.backlog_orders.0.reference', 'ORD-101')
+        ->assertJsonPath('data.actions.0.label', 'Open backlog orders');
+
+    $this->getJson('/api/reports/inventory/summary?from=2026-03-10&to=2026-03-16')
+        ->assertOk()
+        ->assertJsonPath('data.comparison.metrics.total_available.current', 1)
+        ->assertJsonPath('data.breakdowns.by_movement_type.0.label', 'Restock')
+        ->assertJsonPath('data.exceptions.attention_items.0.name', 'Winter Jacket')
+        ->assertJsonPath('data.actions.0.label', 'Open low stock items');
+
+    $this->getJson('/api/reports/returns/summary?from=2026-03-10&to=2026-03-16')
+        ->assertOk()
+        ->assertJsonPath('data.comparison.metrics.total_returns.current', 1)
+        ->assertJsonPath('data.breakdowns.by_reason.0.label', 'Damaged zipper')
+        ->assertJsonPath('data.exceptions.pending_restock.0.order_reference', 'ORD-101')
+        ->assertJsonPath('data.actions.0.label', 'Open restock queue');
+});
+
+test('all-time report summaries remain backward compatible without comparison blocks', function () {
+    $organization = Organization::factory()->create();
+    $user = createReportApiUserWithRole($organization->id, 'Owner');
+
+    Sanctum::actingAs($user);
+
+    $this->getJson('/api/reports/orders/summary')
+        ->assertOk()
+        ->assertJsonMissingPath('data.comparison');
 });
 
 test('returns summary uses returned_at fallback to created_at for filtering', function () {
