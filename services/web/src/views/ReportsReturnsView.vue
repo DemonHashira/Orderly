@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { RouterLink } from 'vue-router'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuth } from '@/features/auth/composables/useAuth'
 import type { DashboardKpiCard } from '@/features/dashboard/types'
@@ -10,7 +8,13 @@ import MiniDistributionChart from '@/features/dashboard/ui/MiniDistributionChart
 import { useReportDateRangeQuery } from '@/features/reports/composables/useReportDateRangeQuery'
 import { useReturnsReportSummaryQuery } from '@/features/reports/composables/useReturnsReportSummaryQuery'
 import { buildReturnsReportViewModel } from '@/features/reports/model/report-view-models'
-import { formatDateTime, formatNumber } from '@/lib/formatters'
+import type { ReportActionLink } from '@/features/reports/model/report-types'
+import ReportActionLinksPanel from '@/features/reports/ui/ReportActionLinksPanel.vue'
+import ReportBreakdownTable from '@/features/reports/ui/ReportBreakdownTable.vue'
+import ReportComparisonPanel from '@/features/reports/ui/ReportComparisonPanel.vue'
+import ReportExceptionsTable from '@/features/reports/ui/ReportExceptionsTable.vue'
+import ReportSurfaceTabs from '@/features/reports/ui/ReportSurfaceTabs.vue'
+import { formatDateTime } from '@/lib/formatters'
 import { normalizeApiError } from '@/shared/api/errors'
 import {
   ApiErrorAlert,
@@ -37,14 +41,33 @@ const viewModel = computed(() =>
   summary.value ? buildReturnsReportViewModel(summary.value) : null,
 )
 const cards = computed<DashboardKpiCard[]>(() => viewModel.value?.cards ?? [])
+const visibleActions = computed<ReportActionLink[]>(() => {
+  if (!viewModel.value) {
+    return []
+  }
+
+  const actions = permissions.value.includes('returns.view') ? [...viewModel.value.actionLinks] : []
+
+  if (permissions.value.includes('inventory.view')) {
+    actions.push({
+      id: 'open-inventory-workspace',
+      label: 'Open Inventory Workspace',
+      description: 'Review stock rows that will be affected by restocked returns.',
+      to: {
+        path: '/inventory/stocks',
+        query: {},
+      },
+    })
+  }
+
+  return actions
+})
 const isInitialLoading = computed(() => reportQuery.isLoading.value && summary.value == null)
 const isRefetching = computed(() => !isInitialLoading.value && reportQuery.isFetching.value)
 const errorMessage = computed(() =>
   reportQuery.error.value ? normalizeApiError(reportQuery.error.value).message : '',
 )
 const showErrorState = computed(() => Boolean(reportQuery.error.value) && summary.value == null)
-const canOpenReturnsWorkspace = computed(() => permissions.value.includes('returns.view'))
-const canOpenInventoryWorkspace = computed(() => permissions.value.includes('inventory.view'))
 const rangeLabel = computed(() => {
   if (!summary.value) {
     return 'Selected range'
@@ -61,7 +84,7 @@ const rangeLabel = computed(() => {
 <template>
   <PageInitialSkeleton v-if="isInitialLoading" />
 
-  <section v-else class="relative space-y-6">
+  <section v-else class="relative flex flex-col gap-6">
     <PageRefetchOverlay :show="isRefetching" />
     <PageHeader
       title="Returns Report"
@@ -97,68 +120,63 @@ const rangeLabel = computed(() => {
     <template v-else-if="summary && viewModel">
       <DashboardKpiSection :cards="cards" :is-loading="false" :has-error="false" />
 
-      <div class="grid gap-4 xl:grid-cols-2">
-        <MiniDistributionChart
-          chart-id="returns-by-outcome"
-          title="Returns by Outcome"
-          description="Returned versus unpaid outcomes during the selected range."
-          :points="viewModel.chartPoints"
-        />
+      <ReportSurfaceTabs>
+        <template #overview>
+          <div class="grid items-start gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+            <MiniDistributionChart
+              chart-id="returns-by-outcome"
+              title="Returns by Outcome"
+              description="Returned versus unpaid outcomes during the selected range."
+              :points="viewModel.chartPoints"
+            />
 
-        <Card class="dashboard-card-interactive">
-          <CardHeader>
-            <CardTitle>Restock rate</CardTitle>
-            <CardDescription>
-              Track how much returned quantity can flow back into available stock.
-            </CardDescription>
-          </CardHeader>
-          <CardContent class="space-y-4">
-            <div class="grid gap-3 sm:grid-cols-3">
-              <div class="rounded-md border p-3">
-                <p class="text-muted-foreground text-xs uppercase tracking-wide">Restock rate</p>
-                <p class="mt-1 text-lg font-semibold">{{ viewModel.restockRate.toFixed(1) }}%</p>
-              </div>
-              <div class="rounded-md border p-3">
-                <p class="text-muted-foreground text-xs uppercase tracking-wide">Write-off rate</p>
-                <p class="mt-1 text-lg font-semibold">{{ viewModel.writeOffRate.toFixed(1) }}%</p>
-              </div>
-              <div class="rounded-md border p-3">
-                <p class="text-muted-foreground text-xs uppercase tracking-wide">Status rows</p>
-                <p class="mt-1 text-lg font-semibold">
-                  {{ formatNumber(viewModel.statusBreakdown.length) }}
-                </p>
-              </div>
-            </div>
+            <ReportComparisonPanel
+              :metrics="viewModel.comparisonMetrics"
+              :range-label="viewModel.comparisonRangeLabel"
+            />
+          </div>
 
-            <div
-              v-if="summary.total_returns === 0"
-              class="rounded-md border border-dashed p-4 text-sm text-muted-foreground"
+          <div class="grid gap-4 md:grid-cols-3">
+            <Card
+              v-for="item in viewModel.overviewCards"
+              :key="item.id"
+              class="dashboard-card-interactive"
             >
-              No returns recorded for the selected range.
-            </div>
+              <CardHeader class="pb-3">
+                <CardTitle class="text-base">{{ item.label }}</CardTitle>
+                <CardDescription>{{ item.description }}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p class="text-2xl font-semibold">{{ item.value }}</p>
+              </CardContent>
+            </Card>
+          </div>
 
-            <div v-else class="space-y-2 text-sm">
-              <div
-                v-for="status in viewModel.statusBreakdown"
-                :key="status.label"
-                class="flex items-center justify-between gap-3 border-b pb-2 last:border-b-0 last:pb-0"
-              >
-                <span class="capitalize">{{ status.label.replace(/_/g, ' ') }}</span>
-                <span class="font-medium">{{ status.value }}</span>
-              </div>
-            </div>
+          <Card v-if="viewModel.zeroStateMessage" class="dashboard-card-interactive">
+            <CardContent class="py-6 text-sm text-muted-foreground">
+              {{ viewModel.zeroStateMessage }}
+            </CardContent>
+          </Card>
 
-            <div class="flex flex-wrap justify-end gap-2">
-              <Button v-if="canOpenReturnsWorkspace" as-child variant="outline">
-                <RouterLink to="/returns">Open Returns Workspace</RouterLink>
-              </Button>
-              <Button v-if="canOpenInventoryWorkspace" as-child>
-                <RouterLink to="/inventory/stocks">Open Inventory Workspace</RouterLink>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          <ReportActionLinksPanel :actions="visibleActions" />
+        </template>
+
+        <template #exceptions>
+          <ReportExceptionsTable
+            v-for="section in viewModel.exceptionSections"
+            :key="section.id"
+            :section="section"
+          />
+        </template>
+
+        <template #breakdowns>
+          <ReportBreakdownTable
+            v-for="section in viewModel.breakdownSections"
+            :key="section.id"
+            :section="section"
+          />
+        </template>
+      </ReportSurfaceTabs>
     </template>
   </section>
 </template>

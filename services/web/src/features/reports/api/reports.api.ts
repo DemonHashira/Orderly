@@ -1,16 +1,16 @@
 import { apiClient } from '@/shared/api/client'
 import { compactParams } from '@/shared/api/params'
+import type { DateRangeParams } from '@/types'
 import type {
-  DateRangeParams,
-  InventorySummaryResponse,
-  OrdersSummaryResponse,
-  ReturnsSummaryResponse,
-} from '@/types'
+  InventoryReportSummaryResponse,
+  OrdersReportSummaryResponse,
+  ReturnsReportSummaryResponse,
+} from '@/features/reports/model/report-types'
 
 export const fetchOrdersReportSummary = async (
   params: DateRangeParams = {},
-): Promise<OrdersSummaryResponse> => {
-  const { data } = await apiClient.get<OrdersSummaryResponse>('/api/reports/orders/summary', {
+): Promise<OrdersReportSummaryResponse> => {
+  const { data } = await apiClient.get<OrdersReportSummaryResponse>('/api/reports/orders/summary', {
     params: compactParams(params),
   })
 
@@ -19,20 +19,26 @@ export const fetchOrdersReportSummary = async (
 
 export const fetchInventoryReportSummary = async (
   params: DateRangeParams = {},
-): Promise<InventorySummaryResponse> => {
-  const { data } = await apiClient.get<InventorySummaryResponse>('/api/reports/inventory/summary', {
-    params: compactParams(params),
-  })
+): Promise<InventoryReportSummaryResponse> => {
+  const { data } = await apiClient.get<InventoryReportSummaryResponse>(
+    '/api/reports/inventory/summary',
+    {
+      params: compactParams(params),
+    },
+  )
 
   return data
 }
 
 export const fetchReturnsReportSummary = async (
   params: DateRangeParams = {},
-): Promise<ReturnsSummaryResponse> => {
-  const { data } = await apiClient.get<ReturnsSummaryResponse>('/api/reports/returns/summary', {
-    params: compactParams(params),
-  })
+): Promise<ReturnsReportSummaryResponse> => {
+  const { data } = await apiClient.get<ReturnsReportSummaryResponse>(
+    '/api/reports/returns/summary',
+    {
+      params: compactParams(params),
+    },
+  )
 
   return data
 }

@@ -98,8 +98,14 @@ const onDelete = async () => {
               <span class="font-medium">Status:</span>
               <StatusBadge :status="order.current_status" />
             </div>
-            <p><span class="font-medium">Customer ID:</span> {{ order.customer_id }}</p>
-            <p><span class="font-medium">Sales Channel ID:</span> {{ order.sales_channel_id }}</p>
+            <p>
+              <span class="font-medium">Customer:</span>
+              {{ order.customer_name ?? `Customer #${order.customer_id}` }}
+            </p>
+            <p>
+              <span class="font-medium">Sales Channel:</span>
+              {{ order.sales_channel_name ?? `Channel #${order.sales_channel_id}` }}
+            </p>
             <p><span class="font-medium">Total:</span> {{ formatCurrency(order.total_amount) }}</p>
             <p>
               <span class="font-medium">Internal notes:</span> {{ order.internal_notes ?? '-' }}

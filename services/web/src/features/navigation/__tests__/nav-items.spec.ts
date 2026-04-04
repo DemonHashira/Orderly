@@ -93,6 +93,17 @@ describe('navigation config', () => {
     ])
   })
 
+  it('deep-links the low-stock quick action into the actionable inventory view', () => {
+    const actions = getQuickActionsByPermissions(['inventory.view'])
+
+    expect(actions).toEqual([
+      expect.objectContaining({
+        id: 'inventory',
+        to: '/inventory/stocks?stock_condition=low_stock&status=active',
+      }),
+    ])
+  })
+
   it('keeps the shipped MVP navigation matrix aligned with role permissions', () => {
     expect(
       filterNavByPermissions(NAV_ITEMS, [...ROLE_PERMISSIONS.owner]).map((item) => item.id),

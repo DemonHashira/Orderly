@@ -20,6 +20,72 @@ const returnsState = vi.hoisted(() => ({
         returned: 7,
         unpaid: 2,
       },
+      comparison: {
+        previous_range: {
+          from: '2026-02-01',
+          to: '2026-02-28',
+        },
+        metrics: {
+          total_returns: {
+            current: 9,
+            previous: 6,
+            delta: 3,
+            direction: 'up',
+            delta_percentage: 50,
+          },
+        },
+      },
+      breakdowns: {
+        by_reason: [
+          { label: 'Damaged item', value: 4 },
+          { label: 'Wrong size', value: 3 },
+        ],
+        by_channel: [
+          { label: 'Retail', value: 5 },
+          { label: 'Website', value: 4 },
+        ],
+        top_products: [
+          {
+            product_id: 302,
+            name: 'Cargo Pants',
+            sku: 'PNT-302',
+            quantity: 5,
+          },
+        ],
+      },
+      exceptions: {
+        pending_restock: [
+          {
+            return_id: 7001,
+            order_reference: 'ORD-7001',
+            reason: 'Damaged zipper',
+            returned_at: '2026-03-27T10:00:00.000000Z',
+            restockable_qty: 3,
+            customer_name: 'Grace Hopper',
+          },
+        ],
+        write_off_products: [
+          {
+            product_id: 302,
+            name: 'Cargo Pants',
+            sku: 'PNT-302',
+            quantity: 2,
+          },
+        ],
+      },
+      actions: [
+        {
+          id: 'open-restock-queue',
+          label: 'Open restock queue',
+          description: 'Review returns that still have restockable quantity.',
+          to: {
+            path: '/returns',
+            query: {
+              status: 'restockable',
+            },
+          },
+        },
+      ],
     },
     meta: {
       generated_at: '2026-03-31T10:00:00.000000Z',
@@ -46,6 +112,72 @@ const makeReturnsReportFixture = () => ({
       returned: 7,
       unpaid: 2,
     },
+    comparison: {
+      previous_range: {
+        from: '2026-02-01',
+        to: '2026-02-28',
+      },
+      metrics: {
+        total_returns: {
+          current: 9,
+          previous: 6,
+          delta: 3,
+          direction: 'up',
+          delta_percentage: 50,
+        },
+      },
+    },
+    breakdowns: {
+      by_reason: [
+        { label: 'Damaged item', value: 4 },
+        { label: 'Wrong size', value: 3 },
+      ],
+      by_channel: [
+        { label: 'Retail', value: 5 },
+        { label: 'Website', value: 4 },
+      ],
+      top_products: [
+        {
+          product_id: 302,
+          name: 'Cargo Pants',
+          sku: 'PNT-302',
+          quantity: 5,
+        },
+      ],
+    },
+    exceptions: {
+      pending_restock: [
+        {
+          return_id: 7001,
+          order_reference: 'ORD-7001',
+          reason: 'Damaged zipper',
+          returned_at: '2026-03-27T10:00:00.000000Z',
+          restockable_qty: 3,
+          customer_name: 'Grace Hopper',
+        },
+      ],
+      write_off_products: [
+        {
+          product_id: 302,
+          name: 'Cargo Pants',
+          sku: 'PNT-302',
+          quantity: 2,
+        },
+      ],
+    },
+    actions: [
+      {
+        id: 'open-restock-queue',
+        label: 'Open restock queue',
+        description: 'Review returns that still have restockable quantity.',
+        to: {
+          path: '/returns',
+          query: {
+            status: 'restockable',
+          },
+        },
+      },
+    ],
   },
   meta: {
     generated_at: '2026-03-31T10:00:00.000000Z',
@@ -106,13 +238,47 @@ describe('ReportsReturnsView', () => {
     return { wrapper }
   }
 
+  const clickTab = async (
+    wrapper: Awaited<ReturnType<typeof mountView>>['wrapper'],
+    label: string,
+  ) => {
+    const trigger = wrapper
+      .findAll('[data-slot="tabs-trigger"]')
+      .find((candidate) => candidate.text() === label)
+
+    expect(trigger).toBeTruthy()
+    await trigger!.trigger('click')
+    await flushPromises()
+  }
+
   it('renders returns insights and workspace shortcuts', async () => {
     const { wrapper } = await mountView()
 
     expect(wrapper.text()).toContain('Returns Report')
-    expect(wrapper.text()).toContain('Restock rate')
-    expect(wrapper.text()).toContain('Open Returns Workspace')
-    expect(wrapper.text()).toContain('Open Inventory Workspace')
+    expect(wrapper.text()).toContain('Order status buckets')
+    expect(wrapper.text()).toContain(
+      'Distinct order statuses among orders with returns in this range.',
+    )
+    expect(wrapper.text()).toContain('Overview')
+    expect(wrapper.text()).toContain('Exceptions')
+    expect(wrapper.text()).toContain('Breakdowns')
+    expect(wrapper.text()).toContain('Compare to previous period')
+    expect(wrapper.text()).toContain('Open restock queue')
+  })
+
+  it('renders returns exception and breakdown sections', async () => {
+    const { wrapper } = await mountView()
+
+    await clickTab(wrapper, 'Exceptions')
+
+    expect(wrapper.text()).toContain('Pending restock')
+    expect(wrapper.text()).toContain('Write-off products')
+    expect(wrapper.text()).toContain('Grace Hopper')
+
+    await clickTab(wrapper, 'Breakdowns')
+
+    expect(wrapper.text()).toContain('Return reasons')
+    expect(wrapper.text()).toContain('Cargo Pants')
   })
 
   it('hides generated metadata on initial load errors without cached data', async () => {

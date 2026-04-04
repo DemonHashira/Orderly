@@ -56,8 +56,8 @@ const cardMeta = computed<
   },
   'inventory-attention': {
     title: 'Inventory Attention',
-    description: 'Lowest currently available SKUs.',
-    to: '/inventory/stocks',
+    description: 'Active SKUs at or below their reorder threshold.',
+    to: '/inventory/stocks?stock_condition=low_stock&status=active',
   },
 }))
 
@@ -65,8 +65,6 @@ const gridClass = computed(() => {
   if (props.queueOrder.length >= 2) return 'grid gap-4 xl:grid-cols-2'
   return 'grid gap-4 grid-cols-1'
 })
-
-const visibleReturnsToRestock = computed(() => props.returnsToRestock.slice(0, 5))
 </script>
 
 <template>
@@ -149,7 +147,7 @@ const visibleReturnsToRestock = computed(() => props.returnsToRestock.slice(0, 5
                 </TableRow>
               </TableHeader>
               <TableBody>
-                <TableRow v-for="returnOrder in visibleReturnsToRestock" :key="returnOrder.id">
+                <TableRow v-for="returnOrder in props.returnsToRestock" :key="returnOrder.id">
                   <TableCell>
                     <RouterLink
                       :to="`/returns/${returnOrder.id}`"

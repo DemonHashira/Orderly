@@ -48,7 +48,7 @@ describe('DashboardQueuesSection', () => {
       '/orders?status=ready_to_ship',
       '/shipments',
       '/returns?has_restockable=true',
-      '/inventory/stocks',
+      '/inventory/stocks?stock_condition=low_stock&status=active',
     ])
   })
 
@@ -88,6 +88,9 @@ describe('DashboardQueuesSection', () => {
       .filter((node) => node.text().trim() === 'View all')
       .map((node) => node.attributes('href'))
 
-    expect(links).toEqual(['/orders?status=ready_to_ship', '/inventory/stocks'])
+    expect(links).toEqual([
+      '/orders?status=ready_to_ship',
+      '/inventory/stocks?stock_condition=low_stock&status=active',
+    ])
   })
 })

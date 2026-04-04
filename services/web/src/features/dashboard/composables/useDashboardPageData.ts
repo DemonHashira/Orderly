@@ -65,7 +65,7 @@ export const useDashboardPageData = () => {
   const returnsQuery = useReturnsQuery(
     {
       has_restockable: true,
-      per_page: 12,
+      per_page: 5,
     },
     {
       enabled: canViewReturns,
@@ -158,7 +158,10 @@ export const useDashboardPageData = () => {
   )
 
   const readyOrders = computed(() => readyOrdersQuery.data.value?.data ?? [])
-  const returnsToRestock = computed(() => returnsQuery.data.value?.data ?? [])
+  const returnsToRestock = computed(() => {
+    const returns = returnsQuery.data.value?.data ?? []
+    return returns.slice(0, 5)
+  })
   const followUpShipments = computed(() => {
     const shipments = shipmentsQuery.data.value?.data ?? []
 

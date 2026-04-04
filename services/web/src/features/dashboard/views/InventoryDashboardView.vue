@@ -63,7 +63,7 @@ const queueOrder = computed(() => {
   <section v-else class="relative space-y-6">
     <PageRefetchOverlay :show="page.isRefetching.value" />
     <PageHeader
-      title="Inventory Dashboard"
+      title="Inventory Manager Dashboard"
       description="Stock accuracy, movement flow, and restock operations."
     >
       <template #actions>

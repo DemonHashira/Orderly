@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { RouterLink } from 'vue-router'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuth } from '@/features/auth/composables/useAuth'
 import type { DashboardKpiCard } from '@/features/dashboard/types'
@@ -10,7 +8,12 @@ import MiniDistributionChart from '@/features/dashboard/ui/MiniDistributionChart
 import { useInventoryReportSummaryQuery } from '@/features/reports/composables/useInventoryReportSummaryQuery'
 import { useReportDateRangeQuery } from '@/features/reports/composables/useReportDateRangeQuery'
 import { buildInventoryReportViewModel } from '@/features/reports/model/report-view-models'
-import { formatDateTime, formatNumber } from '@/lib/formatters'
+import ReportActionLinksPanel from '@/features/reports/ui/ReportActionLinksPanel.vue'
+import ReportBreakdownTable from '@/features/reports/ui/ReportBreakdownTable.vue'
+import ReportComparisonPanel from '@/features/reports/ui/ReportComparisonPanel.vue'
+import ReportExceptionsTable from '@/features/reports/ui/ReportExceptionsTable.vue'
+import ReportSurfaceTabs from '@/features/reports/ui/ReportSurfaceTabs.vue'
+import { formatDateTime } from '@/lib/formatters'
 import { normalizeApiError } from '@/shared/api/errors'
 import {
   ApiErrorAlert,
@@ -37,13 +40,15 @@ const viewModel = computed(() =>
   summary.value ? buildInventoryReportViewModel(summary.value) : null,
 )
 const cards = computed<DashboardKpiCard[]>(() => viewModel.value?.cards ?? [])
+const visibleActions = computed(() =>
+  permissions.value.includes('inventory.view') ? (viewModel.value?.actionLinks ?? []) : [],
+)
 const isInitialLoading = computed(() => reportQuery.isLoading.value && summary.value == null)
 const isRefetching = computed(() => !isInitialLoading.value && reportQuery.isFetching.value)
 const errorMessage = computed(() =>
   reportQuery.error.value ? normalizeApiError(reportQuery.error.value).message : '',
 )
 const showErrorState = computed(() => Boolean(reportQuery.error.value) && summary.value == null)
-const canViewInventoryWorkspace = computed(() => permissions.value.includes('inventory.view'))
 const rangeLabel = computed(() => {
   if (!summary.value) {
     return 'Selected range'
@@ -60,7 +65,7 @@ const rangeLabel = computed(() => {
 <template>
   <PageInitialSkeleton v-if="isInitialLoading" />
 
-  <section v-else class="relative space-y-6">
+  <section v-else class="relative flex flex-col gap-6">
     <PageRefetchOverlay :show="isRefetching" />
     <PageHeader
       title="Inventory Report"
@@ -96,62 +101,63 @@ const rangeLabel = computed(() => {
     <template v-else-if="summary && viewModel">
       <DashboardKpiSection :cards="cards" :is-loading="false" :has-error="false" />
 
-      <div class="grid gap-4 xl:grid-cols-2">
-        <MiniDistributionChart
-          chart-id="inventory-flow"
-          title="Inventory Flow"
-          description="Movement in versus movement out during the selected range."
-          :points="viewModel.chartPoints"
-        />
+      <ReportSurfaceTabs>
+        <template #overview>
+          <div class="grid items-start gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+            <MiniDistributionChart
+              chart-id="inventory-flow"
+              title="Inventory Flow"
+              description="Movement in versus movement out during the selected range."
+              :points="viewModel.chartPoints"
+            />
 
-        <Card class="dashboard-card-interactive">
-          <CardHeader>
-            <CardTitle>Stock context</CardTitle>
-            <CardDescription>
-              Stock totals are current snapshot values, while movement counts are filtered by the
-              selected date range.
-            </CardDescription>
-          </CardHeader>
-          <CardContent class="space-y-4">
-            <div class="grid gap-3 sm:grid-cols-3">
-              <div class="rounded-md border p-3">
-                <p class="text-muted-foreground text-xs uppercase tracking-wide">Reserved</p>
-                <p class="mt-1 text-lg font-semibold">{{ formatNumber(summary.total_reserved) }}</p>
-              </div>
-              <div class="rounded-md border p-3">
-                <p class="text-muted-foreground text-xs uppercase tracking-wide">Net movement</p>
-                <p class="mt-1 text-lg font-semibold">{{ formatNumber(viewModel.netMovement) }}</p>
-              </div>
-              <div class="rounded-md border p-3">
-                <p class="text-muted-foreground text-xs uppercase tracking-wide">Low stock</p>
-                <p class="mt-1 text-lg font-semibold">
-                  {{ formatNumber(summary.low_stock_count) }}
-                </p>
-              </div>
-            </div>
+            <ReportComparisonPanel
+              :metrics="viewModel.comparisonMetrics"
+              :range-label="viewModel.comparisonRangeLabel"
+            />
+          </div>
 
-            <div
-              v-if="
-                summary.total_skus === 0 &&
-                summary.movement_in_qty === 0 &&
-                summary.movement_out_qty === 0
-              "
-              class="rounded-md border border-dashed p-4 text-sm text-muted-foreground"
+          <div class="grid gap-4 md:grid-cols-3">
+            <Card
+              v-for="item in viewModel.overviewCards"
+              :key="item.id"
+              class="dashboard-card-interactive"
             >
-              No inventory activity was recorded for the selected range.
-            </div>
+              <CardHeader class="pb-3">
+                <CardTitle class="text-base">{{ item.label }}</CardTitle>
+                <CardDescription>{{ item.description }}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p class="text-2xl font-semibold">{{ item.value }}</p>
+              </CardContent>
+            </Card>
+          </div>
 
-            <div v-if="canViewInventoryWorkspace" class="flex flex-wrap justify-end gap-2">
-              <Button as-child variant="outline">
-                <RouterLink to="/inventory/stocks">Open Inventory Stocks</RouterLink>
-              </Button>
-              <Button as-child>
-                <RouterLink to="/inventory/movements">Open Inventory Movements</RouterLink>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          <Card v-if="viewModel.zeroStateMessage" class="dashboard-card-interactive">
+            <CardContent class="py-6 text-sm text-muted-foreground">
+              {{ viewModel.zeroStateMessage }}
+            </CardContent>
+          </Card>
+
+          <ReportActionLinksPanel :actions="visibleActions" />
+        </template>
+
+        <template #exceptions>
+          <ReportExceptionsTable
+            v-for="section in viewModel.exceptionSections"
+            :key="section.id"
+            :section="section"
+          />
+        </template>
+
+        <template #breakdowns>
+          <ReportBreakdownTable
+            v-for="section in viewModel.breakdownSections"
+            :key="section.id"
+            :section="section"
+          />
+        </template>
+      </ReportSurfaceTabs>
     </template>
   </section>
 </template>

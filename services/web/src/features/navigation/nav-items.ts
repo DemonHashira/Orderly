@@ -164,8 +164,8 @@ export const getQuickActionsByPermissions = (permissions: string[]) => {
     {
       id: 'inventory',
       label: 'Check Low Stock',
-      description: 'Inspect inventory shortages and movement history.',
-      to: '/inventory/stocks',
+      description: 'Review active SKUs at or below their reorder threshold.',
+      to: '/inventory/stocks?stock_condition=low_stock&status=active',
       icon: Boxes,
       requiredPermission: 'inventory.view',
     },

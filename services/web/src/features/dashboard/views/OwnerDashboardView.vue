@@ -42,7 +42,7 @@ const queueOrder = computed(() => {
   <section v-else class="relative space-y-6">
     <PageRefetchOverlay :show="page.isRefetching.value" />
     <PageHeader
-      title="Dashboard"
+      title="Owner Dashboard"
       description="Owner overview across orders, returns, and inventory."
     >
       <template #actions>

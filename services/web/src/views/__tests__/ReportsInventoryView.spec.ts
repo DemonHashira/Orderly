@@ -19,6 +19,59 @@ const inventoryState = vi.hoisted(() => ({
       low_stock_count: 5,
       movement_in_qty: 70,
       movement_out_qty: 40,
+      comparison: {
+        previous_range: {
+          from: '2026-02-01',
+          to: '2026-02-28',
+        },
+        metrics: {
+          total_available: {
+            current: 820,
+            previous: 760,
+            delta: 60,
+            direction: 'up',
+            delta_percentage: 7.9,
+          },
+        },
+      },
+      breakdowns: {
+        by_movement_type: [
+          { label: 'Restock', value: 70 },
+          { label: 'Damage', value: 12 },
+        ],
+        by_reference_type: [
+          { label: 'Order', value: 40 },
+          { label: 'Return', value: 18 },
+        ],
+      },
+      exceptions: {
+        attention_items: [
+          {
+            product_id: 401,
+            name: 'Archive Hoodie',
+            sku: 'HD-401',
+            status: 'low_stock',
+            qty_on_hand: 3,
+            qty_reserved: 2,
+            qty_available: 1,
+            reorder_threshold: 5,
+            shortage_qty: 2,
+          },
+        ],
+      },
+      actions: [
+        {
+          id: 'open-low-stock-items',
+          label: 'Open low stock items',
+          description: 'Review items that need replenishment.',
+          to: {
+            path: '/inventory/stocks',
+            query: {
+              q: 'HD-401',
+            },
+          },
+        },
+      ],
     },
     meta: {
       generated_at: '2026-03-31T10:00:00.000000Z',
@@ -44,6 +97,59 @@ const makeInventoryReportFixture = () => ({
     low_stock_count: 5,
     movement_in_qty: 70,
     movement_out_qty: 40,
+    comparison: {
+      previous_range: {
+        from: '2026-02-01',
+        to: '2026-02-28',
+      },
+      metrics: {
+        total_available: {
+          current: 820,
+          previous: 760,
+          delta: 60,
+          direction: 'up',
+          delta_percentage: 7.9,
+        },
+      },
+    },
+    breakdowns: {
+      by_movement_type: [
+        { label: 'Restock', value: 70 },
+        { label: 'Damage', value: 12 },
+      ],
+      by_reference_type: [
+        { label: 'Order', value: 40 },
+        { label: 'Return', value: 18 },
+      ],
+    },
+    exceptions: {
+      attention_items: [
+        {
+          product_id: 401,
+          name: 'Archive Hoodie',
+          sku: 'HD-401',
+          status: 'low_stock',
+          qty_on_hand: 3,
+          qty_reserved: 2,
+          qty_available: 1,
+          reorder_threshold: 5,
+          shortage_qty: 2,
+        },
+      ],
+    },
+    actions: [
+      {
+        id: 'open-low-stock-items',
+        label: 'Open low stock items',
+        description: 'Review items that need replenishment.',
+        to: {
+          path: '/inventory/stocks',
+          query: {
+            q: 'HD-401',
+          },
+        },
+      },
+    ],
   },
   meta: {
     generated_at: '2026-03-31T10:00:00.000000Z',
@@ -104,13 +210,42 @@ describe('ReportsInventoryView', () => {
     return { wrapper }
   }
 
+  const clickTab = async (
+    wrapper: Awaited<ReturnType<typeof mountView>>['wrapper'],
+    label: string,
+  ) => {
+    const trigger = wrapper
+      .findAll('[data-slot="tabs-trigger"]')
+      .find((candidate) => candidate.text() === label)
+
+    expect(trigger).toBeTruthy()
+    await trigger!.trigger('click')
+    await flushPromises()
+  }
+
   it('renders inventory snapshot and movement copy', async () => {
     const { wrapper } = await mountView()
 
     expect(wrapper.text()).toContain('Inventory Report')
-    expect(wrapper.text()).toContain('Stock totals are current snapshot values')
-    expect(wrapper.text()).toContain('Open Inventory Stocks')
-    expect(wrapper.text()).toContain('Open Inventory Movements')
+    expect(wrapper.text()).toContain('Overview')
+    expect(wrapper.text()).toContain('Exceptions')
+    expect(wrapper.text()).toContain('Breakdowns')
+    expect(wrapper.text()).toContain('Compare to previous period')
+    expect(wrapper.text()).toContain('Open low stock items')
+  })
+
+  it('renders inventory attention and breakdown sections', async () => {
+    const { wrapper } = await mountView()
+
+    await clickTab(wrapper, 'Exceptions')
+
+    expect(wrapper.text()).toContain('Inventory attention')
+    expect(wrapper.text()).toContain('Archive Hoodie')
+
+    await clickTab(wrapper, 'Breakdowns')
+
+    expect(wrapper.text()).toContain('Movement type')
+    expect(wrapper.text()).toContain('Reference source')
   })
 
   it('hides generated metadata on initial load errors without cached data', async () => {
@@ -130,7 +265,7 @@ describe('ReportsInventoryView', () => {
     const { wrapper } = await mountView()
 
     expect(wrapper.text()).toContain('Inventory Report')
-    expect(wrapper.text()).toContain('Open Inventory Stocks')
+    expect(wrapper.text()).toContain('Open low stock items')
     expect(wrapper.text()).toContain('Generated')
     expect(wrapper.text()).not.toContain('Inventory report unavailable')
   })
