@@ -4,6 +4,7 @@ import { computed, ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { createPinia } from 'pinia'
 import OrdersView from '@/views/OrdersView.vue'
+import type { Order } from '@/types'
 
 const authState = vi.hoisted(() => ({
   permissions: [] as string[],
@@ -16,6 +17,7 @@ const ordersState = vi.hoisted(() => ({
       reference: 'ORD-101',
       customer_id: 12,
       sales_channel_id: 3,
+      sales_channel_name: 'Online Store',
       created_by: 1,
       current_status: 'ready_to_ship',
       total_amount: '99.00',
@@ -25,8 +27,12 @@ const ordersState = vi.hoisted(() => ({
       items: [],
       status_history: [],
     },
-  ],
-  detail: null as Record<string, unknown> | null,
+  ] as Order[],
+  detail: null as Order | null,
+}))
+
+const salesChannelsState = vi.hoisted(() => ({
+  list: [] as Array<{ id: number; code: string; name: string }>,
 }))
 
 const mutationState = vi.hoisted(() => ({
@@ -100,6 +106,15 @@ vi.mock('@/features/lookups/composables/useOrderCreateLookupQuery', () => ({
   }),
 }))
 
+vi.mock('@/features/sales-channels/composables/useSalesChannelsQuery', () => ({
+  useSalesChannelsQuery: () => ({
+    data: computed(() => ({ data: salesChannelsState.list })),
+    isLoading: ref(false),
+    isFetching: ref(false),
+    error: ref(null),
+  }),
+}))
+
 vi.mock('@/features/shipments/composables/useShipmentsQueries', () => ({
   useShipmentsQuery: (
     params: { value?: { order_id?: number } } | (() => { order_id?: number }),
@@ -144,8 +159,15 @@ const DialogStub = {
 }
 
 const OrdersDataTableStub = {
+  props: ['rows'],
   emits: ['create-shipment', 'update:page', 'update:per-page'],
   template: `
+    <div v-for="row in rows" :key="row.id" data-test="orders-row-sales-channel">
+      {{ row.sales_channel_name }}
+    </div>
+    <div v-for="row in rows" :key="'customer-' + row.id" data-test="orders-row-customer-name">
+      {{ row.customer_name }}
+    </div>
     <button
       type="button"
       data-test="orders-table-create-shipment"
@@ -165,6 +187,7 @@ describe('OrdersView', () => {
         reference: 'ORD-101',
         customer_id: 12,
         sales_channel_id: 3,
+        sales_channel_name: 'Online Store',
         created_by: 1,
         current_status: 'ready_to_ship',
         total_amount: '99.00',
@@ -176,6 +199,7 @@ describe('OrdersView', () => {
       },
     ]
     ordersState.detail = null
+    salesChannelsState.list = []
     shipmentsState.byOrderId = {}
     mutationState.createShipment = vi.fn().mockResolvedValue({
       data: {
@@ -257,7 +281,7 @@ describe('OrdersView', () => {
 
   it('shows detail shipment entry only for eligible status and permission', async () => {
     ordersState.detail = {
-      ...ordersState.list[0],
+      ...ordersState.list[0]!,
       current_status: 'ready_to_ship',
     }
 
@@ -266,7 +290,7 @@ describe('OrdersView', () => {
     expect(eligible.wrapper.text()).toContain('Create Shipment')
 
     ordersState.detail = {
-      ...ordersState.list[0],
+      ...ordersState.list[0]!,
       current_status: 'confirmed',
     }
     const blockedStatus = await mountView('/orders/101')
@@ -274,7 +298,7 @@ describe('OrdersView', () => {
 
     authState.permissions = []
     ordersState.detail = {
-      ...ordersState.list[0],
+      ...ordersState.list[0]!,
       current_status: 'ready_to_ship',
     }
     const blockedPermission = await mountView('/orders/101')
@@ -387,5 +411,65 @@ describe('OrdersView', () => {
     await flushPromises()
 
     expect(toastState.success).toHaveBeenCalledWith('Shipment updated successfully.')
+  })
+
+  it('renders sales channel names from order data without create lookups', async () => {
+    ordersState.list = [
+      {
+        ...ordersState.list[0]!,
+        sales_channel_id: 8,
+        sales_channel_name: 'Retail Store',
+      },
+    ]
+
+    const { wrapper } = await mountView()
+
+    expect(wrapper.find('[data-test="orders-row-sales-channel"]').text()).toContain('Retail Store')
+    expect(wrapper.text()).not.toContain('Channel #8')
+  })
+
+  it('renders customer names from order data without customer lookups', async () => {
+    ordersState.list = [
+      {
+        ...ordersState.list[0]!,
+        customer_id: 32,
+        customer_name: 'Simona Popova',
+      },
+    ]
+
+    const { wrapper } = await mountView()
+
+    expect(wrapper.find('[data-test="orders-row-customer-name"]').text()).toContain('Simona Popova')
+    expect(wrapper.text()).not.toContain('Customer #32')
+  })
+
+  it('shows the sales channel name in the detail dialog', async () => {
+    ordersState.detail = {
+      ...ordersState.list[0]!,
+      sales_channel_id: 9,
+      sales_channel_name: 'Marketplace',
+    }
+
+    const { wrapper } = await mountView('/orders/101')
+
+    expect(wrapper.text()).toContain('Sales Channel:')
+    expect(wrapper.text()).toContain('Marketplace')
+    expect(wrapper.text()).not.toContain('Sales Channel ID:')
+    expect(wrapper.text()).not.toContain('Channel #9')
+  })
+
+  it('shows the customer name in the detail dialog', async () => {
+    ordersState.detail = {
+      ...ordersState.list[0]!,
+      customer_id: 24,
+      customer_name: 'Yordan Petkov',
+    }
+
+    const { wrapper } = await mountView('/orders/101')
+
+    expect(wrapper.text()).toContain('Customer:')
+    expect(wrapper.text()).toContain('Yordan Petkov')
+    expect(wrapper.text()).not.toContain('Customer ID:')
+    expect(wrapper.text()).not.toContain('Customer #24')
   })
 })

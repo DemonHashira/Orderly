@@ -24,6 +24,7 @@ const inventoryState = vi.hoisted(() => ({
       available: 16,
     },
   ],
+  paramsRef: null as { value: Record<string, unknown> } | null,
 }))
 
 vi.mock('@/features/auth/composables/useAuth', () => ({
@@ -33,20 +34,24 @@ vi.mock('@/features/auth/composables/useAuth', () => ({
 }))
 
 vi.mock('@/features/inventory/composables/useInventoryQueries', () => ({
-  useInventoryStocksQuery: () => ({
-    data: computed(() => ({
-      data: inventoryState.stocks,
-      meta: {
-        current_page: 1,
-        last_page: 3,
-        total: inventoryState.stocks.length,
-        per_page: 15,
-      },
-    })),
-    isLoading: ref(false),
-    isFetching: ref(false),
-    error: ref(null),
-  }),
+  useInventoryStocksQuery: (params: { value: Record<string, unknown> }) => {
+    inventoryState.paramsRef = params
+
+    return {
+      data: computed(() => ({
+        data: inventoryState.stocks,
+        meta: {
+          current_page: 1,
+          last_page: 3,
+          total: inventoryState.stocks.length,
+          per_page: 15,
+        },
+      })),
+      isLoading: ref(false),
+      isFetching: ref(false),
+      error: ref(null),
+    }
+  },
 }))
 
 const InventoryStocksDataTableStub = {
@@ -66,6 +71,7 @@ const InventoryStocksDataTableStub = {
 describe('InventoryStocksView', () => {
   beforeEach(() => {
     authState.permissions = []
+    inventoryState.paramsRef = null
   })
 
   afterEach(() => {
@@ -123,17 +129,39 @@ describe('InventoryStocksView', () => {
   })
 
   it('hydrates stock filters from route query', async () => {
-    const { pinia } = await mountView('/inventory/stocks?q=coat&status=archived&page=2')
+    const { pinia } = await mountView(
+      '/inventory/stocks?q=coat&status=archived&stock_condition=low_stock&page=2',
+    )
     const listUiStore = useListUiStateStore(pinia)
 
     expect(listUiStore.modules.inventory_stocks.q).toBe('coat')
     expect(listUiStore.modules.inventory_stocks.status).toBe('archived')
+    expect(listUiStore.modules.inventory_stocks.stock_condition).toBe('low_stock')
     expect(listUiStore.modules.inventory_stocks.page).toBe(2)
+  })
+
+  it('passes stock condition to the inventory stocks query params', async () => {
+    await mountView('/inventory/stocks?stock_condition=low_stock&status=active')
+
+    expect(inventoryState.paramsRef?.value).toMatchObject({
+      stock_condition: 'low_stock',
+      is_active: true,
+    })
+  })
+
+  it('syncs stock condition changes back to the route query', async () => {
+    const { router, pinia } = await mountView()
+    const listUiStore = useListUiStateStore(pinia)
+
+    listUiStore.setState('inventory_stocks', { stock_condition: 'reserved' })
+    await flushPromises()
+
+    expect(router.currentRoute.value.query.stock_condition).toBe('reserved')
   })
 
   it('resets stock filters back to defaults', async () => {
     const { wrapper, router, pinia } = await mountView(
-      '/inventory/stocks?q=coat&status=archived&page=2',
+      '/inventory/stocks?q=coat&status=archived&stock_condition=low_stock&page=2',
     )
     const listUiStore = useListUiStateStore(pinia)
 
@@ -145,6 +173,7 @@ describe('InventoryStocksView', () => {
     expect(router.currentRoute.value.query).toEqual({})
     expect(listUiStore.modules.inventory_stocks.q).toBe('')
     expect(listUiStore.modules.inventory_stocks.status).toBe('')
+    expect(listUiStore.modules.inventory_stocks.stock_condition).toBe('')
     expect(listUiStore.modules.inventory_stocks.page).toBe(1)
   })
 

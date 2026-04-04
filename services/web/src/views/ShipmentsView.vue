@@ -7,6 +7,13 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   AlertDialog,
   AlertDialogCancel,
   AlertDialogContent,
@@ -61,7 +68,13 @@ const SHIPMENTS_LIST_FIELDS: ListUiField[] = [
   'page',
   'per_page',
 ]
-const DELIVERY_FILTER_OPTIONS = ['all', 'delivered', 'pending'] as const
+const SHIPMENT_OUTCOME_FILTER_OPTIONS = [
+  'all',
+  'shipped',
+  'delivered',
+  'returned',
+  'unpaid',
+] as const
 
 const { permissions } = useAuth()
 const route = useRoute()
@@ -86,11 +99,15 @@ const searchInput = computed({
   get: () => listUiStore.modules[listModule].q,
   set: (value: string) => listUiStore.setState(listModule, { q: value }),
 })
-const deliveredFilter = computed<(typeof DELIVERY_FILTER_OPTIONS)[number]>({
+const outcomeFilter = computed<(typeof SHIPMENT_OUTCOME_FILTER_OPTIONS)[number]>({
   get: () => {
     const value = listUiStore.modules[listModule].status
-    if (value === 'delivered' || value === 'pending') {
-      return value
+    if (
+      SHIPMENT_OUTCOME_FILTER_OPTIONS.includes(
+        value as (typeof SHIPMENT_OUTCOME_FILTER_OPTIONS)[number],
+      )
+    ) {
+      return value as (typeof SHIPMENT_OUTCOME_FILTER_OPTIONS)[number]
     }
     return 'all'
   },
@@ -123,9 +140,9 @@ const shipmentsQuery = useShipmentsQuery(
     per_page: perPage.value,
     tracking_number: debouncedSearch.value || undefined,
     courier: debouncedCourier.value || undefined,
+    outcome: outcomeFilter.value === 'all' ? undefined : outcomeFilter.value,
     shipped_from: shippedFrom.value || undefined,
     shipped_to: shippedTo.value || undefined,
-    delivered: deliveredFilter.value === 'all' ? undefined : deliveredFilter.value === 'delivered',
   })),
 )
 
@@ -232,7 +249,9 @@ watch(
     isSyncingFromRoute.value = true
     listUiStore.hydrateFromQuery(listModule, normalizedQuery, SHIPMENTS_LIST_FIELDS, {
       status: (value: string) =>
-        DELIVERY_FILTER_OPTIONS.includes(value as (typeof DELIVERY_FILTER_OPTIONS)[number]),
+        SHIPMENT_OUTCOME_FILTER_OPTIONS.includes(
+          value as (typeof SHIPMENT_OUTCOME_FILTER_OPTIONS)[number],
+        ),
     })
     void nextTick().then(() => {
       isSyncingFromRoute.value = false
@@ -241,7 +260,7 @@ watch(
   { immediate: true },
 )
 
-watch([debouncedSearch, deliveredFilter, shippedFrom, shippedTo, debouncedCourier], () => {
+watch([debouncedSearch, outcomeFilter, shippedFrom, shippedTo, debouncedCourier], () => {
   if (!isSyncingFromRoute.value) {
     page.value = 1
   }
@@ -254,7 +273,7 @@ watch(perPage, () => {
 })
 
 watch(
-  [debouncedSearch, deliveredFilter, shippedFrom, shippedTo, page, perPage, debouncedCourier],
+  [debouncedSearch, outcomeFilter, shippedFrom, shippedTo, page, perPage, debouncedCourier],
   () => {
     if (isSyncingFromRoute.value) {
       return
@@ -271,7 +290,9 @@ watch(
       SHIPMENTS_LIST_FIELDS,
       {
         status: (value: string) =>
-          DELIVERY_FILTER_OPTIONS.includes(value as (typeof DELIVERY_FILTER_OPTIONS)[number]),
+          SHIPMENT_OUTCOME_FILTER_OPTIONS.includes(
+            value as (typeof SHIPMENT_OUTCOME_FILTER_OPTIONS)[number],
+          ),
       },
     )
 
@@ -338,7 +359,7 @@ const applyPreset = (preset: 'all' | 'last_7' | 'last_30') => {
 const resetFilters = () => {
   searchInput.value = ''
   courierInput.value = ''
-  deliveredFilter.value = 'all'
+  outcomeFilter.value = 'all'
   shippedFrom.value = ''
   shippedTo.value = ''
   perPage.value = 15
@@ -377,9 +398,7 @@ const closeShipmentDialog = async () => {
     <Card class="gap-0">
       <CardHeader class="pb-4">
         <CardTitle class="text-base">Search & Filters</CardTitle>
-        <CardDescription>
-          Filter by tracking/courier, shipped range, and delivery state.
-        </CardDescription>
+        <CardDescription> Filter by tracking/courier, outcome, and shipped range. </CardDescription>
       </CardHeader>
       <CardContent class="space-y-3">
         <div class="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
@@ -409,6 +428,19 @@ const closeShipmentDialog = async () => {
               input-class="w-full"
               @update:model-value="(value) => (courierInput = value)"
             />
+
+            <Select v-model="outcomeFilter">
+              <SelectTrigger class="w-[170px] shrink-0" data-test="shipments-outcome-filter">
+                <SelectValue placeholder="Outcome..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All outcomes</SelectItem>
+                <SelectItem value="shipped">Shipped</SelectItem>
+                <SelectItem value="delivered">Delivered</SelectItem>
+                <SelectItem value="returned">Returned</SelectItem>
+                <SelectItem value="unpaid">Unpaid</SelectItem>
+              </SelectContent>
+            </Select>
 
             <DateRangeFilter
               class="shrink-0"

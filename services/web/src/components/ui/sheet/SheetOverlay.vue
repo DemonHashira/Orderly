@@ -2,12 +2,16 @@
 import type { DialogOverlayProps } from 'reka-ui'
 import type { HTMLAttributes } from 'vue'
 import { reactiveOmit } from '@vueuse/core'
-import { DialogOverlay } from 'reka-ui'
+import { DialogOverlay, injectDialogRootContext } from 'reka-ui'
 import { cn } from '@/lib/utils'
+import { useDocumentRootScrollLock } from '@/components/ui/dialog/useDocumentRootScrollLock'
 
 const props = defineProps<DialogOverlayProps & { class?: HTMLAttributes['class'] }>()
 
 const delegatedProps = reactiveOmit(props, 'class')
+const dialogRootContext = injectDialogRootContext()
+
+useDocumentRootScrollLock(dialogRootContext.open)
 </script>
 
 <template>

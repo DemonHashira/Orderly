@@ -17,6 +17,7 @@ const returnsState = vi.hoisted(() => ({
       order_id: 101,
       reason: 'Damaged package',
       returned_at: '2026-03-09T08:00:00Z',
+      restocked_at: null,
       created_at: '2026-03-09T08:00:00Z',
       updated_at: '2026-03-09T08:00:00Z',
       order: {
@@ -309,6 +310,19 @@ describe('ReturnsView', () => {
 
     expect(wrapper.text()).toContain('Return Detail')
     expect(wrapper.text()).toContain('ORD-101')
+  })
+
+  it('hides the detail restock action when the return is already restocked', async () => {
+    authState.permissions = ['returns.view', 'returns.restock']
+    returnsState.detail = {
+      ...returnsState.list[0],
+      id: 11,
+      restocked_at: '2026-03-10T08:00:00Z',
+    }
+
+    const { wrapper } = await mountView('/returns/11')
+
+    expect(wrapper.find('[data-test="return-detail-restock"]').exists()).toBe(false)
   })
 
   it('shows linked customer details in return metadata when customer visibility is allowed', async () => {

@@ -260,8 +260,10 @@ const selectedProductAvailability = computed(() => {
 
 const isAddItemContextLoading = computed(() => canAddItem.value && isDetailDialogLoading.value)
 
-const detailRestockableItemCount = computed(
-  () => detailReturnForDialog.value?.items?.filter((item) => item.restockable).length ?? 0,
+const detailRestockableItemCount = computed(() =>
+  detailReturnForDialog.value?.restocked_at
+    ? 0
+    : (detailReturnForDialog.value?.items?.filter((item) => item.restockable).length ?? 0),
 )
 
 const canRestockDetailReturn = computed(
@@ -691,6 +693,10 @@ const restockableText = (value: boolean) => (value ? 'Yes' : 'No')
                       ? formatDateTime(detailReturnForDialog.returned_at)
                       : '-'
                   }}
+                </p>
+                <p v-if="detailReturnForDialog.restocked_at">
+                  <span class="font-medium">Restocked at:</span>
+                  {{ formatDateTime(detailReturnForDialog.restocked_at) }}
                 </p>
                 <p>
                   <span class="font-medium">Created:</span>

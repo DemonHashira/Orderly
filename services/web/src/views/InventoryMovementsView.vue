@@ -128,12 +128,7 @@ const filterProductsQuery = useProductsQuery(
     is_active: true,
   })),
   {
-    enabled: computed(
-      () =>
-        canViewProducts.value &&
-        (filteredProductId.value.length > 0 ||
-          debouncedFilterProductSearch.value.trim().length > 0),
-    ),
+    enabled: computed(() => canViewProducts.value),
   },
 )
 
@@ -463,7 +458,7 @@ const quantityHint = computed(() => {
             :loading="filterProductsQuery.isFetching.value"
             :selected-label="selectedFilterProductLabel"
             placeholder="Filter by product"
-            empty-message="Start typing to find an active product."
+            empty-message="No matching active products found."
             data-test="inventory-movements-product-filter"
           />
 

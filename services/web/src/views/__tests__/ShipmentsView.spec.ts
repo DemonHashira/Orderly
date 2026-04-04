@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
-import { computed, ref } from 'vue'
+import { computed, ref, toValue } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { createPinia } from 'pinia'
 import ShipmentsView from '@/views/ShipmentsView.vue'
@@ -39,6 +39,10 @@ const shipmentDetailState = vi.hoisted(() => ({
   detail: null as Record<string, unknown> | null,
 }))
 
+const shipmentsQueryCapture = vi.hoisted(() => ({
+  lastParams: null as unknown,
+}))
+
 vi.mock('@/features/auth/composables/useAuth', () => ({
   useAuth: () => ({
     permissions: computed(() => authState.permissions),
@@ -46,20 +50,24 @@ vi.mock('@/features/auth/composables/useAuth', () => ({
 }))
 
 vi.mock('@/features/shipments/composables/useShipmentsQueries', () => ({
-  useShipmentsQuery: () => ({
-    data: computed(() => ({
-      data: shipmentsState.list,
-      meta: {
-        current_page: 1,
-        last_page: 1,
-        total: shipmentsState.list.length,
-        per_page: 15,
-      },
-    })),
-    isLoading: ref(false),
-    isFetching: ref(false),
-    error: ref(null),
-  }),
+  useShipmentsQuery: (params: unknown) => {
+    shipmentsQueryCapture.lastParams = computed(() => toValue(params) as Record<string, unknown>)
+
+    return {
+      data: computed(() => ({
+        data: shipmentsState.list,
+        meta: {
+          current_page: 1,
+          last_page: 1,
+          total: shipmentsState.list.length,
+          per_page: 15,
+        },
+      })),
+      isLoading: ref(false),
+      isFetching: ref(false),
+      error: ref(null),
+    }
+  },
   useShipmentQuery: () => ({
     data: computed(() => ({ data: shipmentDetailState.detail })),
     isLoading: ref(false),
@@ -95,6 +103,7 @@ describe('ShipmentsView', () => {
   beforeEach(() => {
     authState.permissions = []
     shipmentDetailState.detail = null
+    shipmentsQueryCapture.lastParams = null
     mutationState.delivered = vi.fn().mockResolvedValue({})
     mutationState.returned = vi.fn().mockResolvedValue({})
     mutationState.unpaid = vi.fn().mockResolvedValue({})
@@ -247,6 +256,14 @@ describe('ShipmentsView', () => {
 
     expect(search.value).toBe('ABC123')
     expect(courier.value).toBe('Speedy')
+  })
+
+  it('hydrates outcome filter from route query into shipments params', async () => {
+    await mountView('/shipments?status=returned')
+
+    expect(
+      (toValue(shipmentsQueryCapture.lastParams as object) as Record<string, unknown>).outcome,
+    ).toBe('returned')
   })
 
   it('opens shipment detail inside dialog route context', async () => {

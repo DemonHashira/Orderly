@@ -41,6 +41,7 @@ const productState = vi.hoisted(() => ({
       updated_at: '2026-03-09T08:00:00Z',
     },
   ],
+  enabledCalls: [] as boolean[],
 }))
 
 const mutationState = vi.hoisted(() => ({
@@ -75,14 +76,18 @@ vi.mock('@/features/inventory/composables/useInventoryQueries', () => ({
 }))
 
 vi.mock('@/features/products/composables/useProductsQueries', () => ({
-  useProductsQuery: () => ({
-    data: computed(() => ({
-      data: productState.products,
-    })),
-    isLoading: ref(false),
-    isFetching: ref(false),
-    error: ref(null),
-  }),
+  useProductsQuery: (_params: unknown, options?: { enabled?: { value: boolean } }) => {
+    productState.enabledCalls.push(options?.enabled?.value ?? true)
+
+    return {
+      data: computed(() => ({
+        data: productState.products,
+      })),
+      isLoading: ref(false),
+      isFetching: ref(false),
+      error: ref(null),
+    }
+  },
 }))
 
 const DialogStub = {
@@ -134,6 +139,7 @@ const InventoryProductComboboxStub = {
 describe('InventoryMovementsView', () => {
   beforeEach(() => {
     authState.permissions = ['inventory.view', 'inventory.movement.create', 'products.view']
+    productState.enabledCalls = []
     mutationState.create = vi.fn().mockResolvedValue({
       data: {
         movement: inventoryState.movements[0],
@@ -220,6 +226,12 @@ describe('InventoryMovementsView', () => {
     expect(listUiStore.modules.inventory_movements.created_from).toBe('2026-03-01')
     expect(listUiStore.modules.inventory_movements.created_to).toBe('2026-03-10')
     expect(listUiStore.modules.inventory_movements.page).toBe(2)
+  })
+
+  it('preloads active products for the filter combobox so the first open is not empty', async () => {
+    await mountView()
+
+    expect(productState.enabledCalls[0]).toBe(true)
   })
 
   it('resets movement filters back to defaults', async () => {

@@ -4,7 +4,9 @@ export type Order = {
   id: number
   reference: string
   customer_id: number
+  customer_name?: string | null
   sales_channel_id: number
+  sales_channel_name?: string | null
   created_by: number
   current_status: string
   total_amount: string
@@ -51,6 +53,7 @@ export type ReturnOrder = {
   order_id: number
   reason: string | null
   returned_at: string | null
+  restocked_at: string | null
   created_at: string
   updated_at: string
   order?: {
@@ -118,6 +121,15 @@ export type Customer = {
   last_name: string | null
   email: string | null
   phone: string | null
+  address: CustomerAddress | null
+}
+
+export type CustomerAddress = {
+  country: string | null
+  city: string | null
+  postal_code: string | null
+  address_line1: string | null
+  address_line2: string | null
 }
 
 export type Product = {
@@ -168,6 +180,7 @@ export type ShipmentListParams = PaginationParams & {
   order_id?: number
   courier?: string
   tracking_number?: string
+  outcome?: string
   shipped_from?: string
   shipped_to?: string
   delivered?: boolean
@@ -184,6 +197,7 @@ export type ReturnListParams = PaginationParams & {
 export type InventoryStocksListParams = PaginationParams &
   SearchParams & {
     is_active?: boolean
+    stock_condition?: string
   }
 
 export type InventoryMovementsListParams = PaginationParams &

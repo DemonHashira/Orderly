@@ -45,8 +45,11 @@ const sortableHeader = (
 const totalReturnedQty = (returnOrder: ReturnOrder): number =>
   (returnOrder.items ?? []).reduce((total, item) => total + item.quantity, 0)
 
+const pendingRestockableItemCount = (returnOrder: ReturnOrder): number =>
+  returnOrder.restocked_at ? 0 : (returnOrder.items ?? []).filter((item) => item.restockable).length
+
 const restockableItemCount = (returnOrder: ReturnOrder): number =>
-  (returnOrder.items ?? []).filter((item) => item.restockable).length
+  pendingRestockableItemCount(returnOrder)
 
 const hasRestockableItems = (returnOrder: ReturnOrder): boolean =>
   restockableItemCount(returnOrder) > 0

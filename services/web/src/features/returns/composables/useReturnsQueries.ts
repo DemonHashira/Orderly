@@ -1,6 +1,6 @@
 import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { dashboardKeys, inventoryKeys, reportsKeys, returnsKeys } from '@/lib/query-keys'
+import { dashboardKeys, inventoryKeys, returnsKeys } from '@/lib/query-keys'
 import {
   addReturnItem,
   fetchReturn,
@@ -56,7 +56,6 @@ export const useRestockReturnMutation = () => {
       void queryClient.invalidateQueries({ queryKey: returnsKeys.detail(returnId) })
       void queryClient.invalidateQueries({ queryKey: inventoryKeys.all })
       void queryClient.invalidateQueries({ queryKey: dashboardKeys.all })
-      void queryClient.invalidateQueries({ queryKey: reportsKeys.all })
     },
   })
 }
@@ -72,7 +71,6 @@ export const useAddReturnItemMutation = () => {
       void queryClient.invalidateQueries({ queryKey: returnsKeys.byOrder(response.data.order_id) })
       void queryClient.invalidateQueries({ queryKey: inventoryKeys.all })
       void queryClient.invalidateQueries({ queryKey: dashboardKeys.all })
-      void queryClient.invalidateQueries({ queryKey: reportsKeys.all })
     },
   })
 }

@@ -40,6 +40,7 @@ import {
 import { useAuth } from '@/features/auth/composables/useAuth'
 import { useCustomersQuery } from '@/features/customers/composables/useCustomersQueries'
 import { useOrderCreateLookupQuery } from '@/features/lookups/composables/useOrderCreateLookupQuery'
+import { useSalesChannelsQuery } from '@/features/sales-channels/composables/useSalesChannelsQuery'
 import { BULGARIA_COURIER_OPTIONS } from '@/features/shipments/constants/couriers'
 import {
   useCreateShipmentMutation,
@@ -106,6 +107,7 @@ const shipmentForm = ref({
 })
 const shipmentFieldErrors = ref<Record<string, string>>({})
 const shipmentSubmitError = ref('')
+const salesChannelSearch = ref('')
 
 const page = computed({
   get: () => listUiStore.modules[listModule].page,
@@ -156,6 +158,7 @@ const customersQuery = useCustomersQuery(
   },
 )
 const lookupQuery = useOrderCreateLookupQuery()
+const salesChannelsQuery = useSalesChannelsQuery(salesChannelSearch)
 
 const ordersQuery = useOrdersQuery(
   computed(() => ({
@@ -239,11 +242,17 @@ const isActionMutationPending = computed(() => {
 const isInitialLoading = useInitialLoadingGate(ordersQuery.isLoading)
 const isRefreshing = computed(() => !isInitialLoading.value && ordersQuery.isFetching.value)
 const isCreateDialogLoading = computed(
-  () => customersQuery.isLoading.value || lookupQuery.isLoading.value,
+  () =>
+    customersQuery.isLoading.value ||
+    lookupQuery.isLoading.value ||
+    salesChannelsQuery.isLoading.value,
 )
 const isEditDialogLoading = computed(
   () =>
-    editOrderQuery.isLoading.value || customersQuery.isLoading.value || lookupQuery.isLoading.value,
+    editOrderQuery.isLoading.value ||
+    customersQuery.isLoading.value ||
+    lookupQuery.isLoading.value ||
+    salesChannelsQuery.isLoading.value,
 )
 const isDetailDialogLoading = computed(() => detailOrderQuery.isLoading.value)
 const shouldShowDetailDialogLoading = computed(
@@ -261,19 +270,33 @@ const customerNameById = computed(() => {
   return new Map<number, string>(entries)
 })
 
+const salesChannels = computed(() => salesChannelsQuery.data.value?.data ?? [])
+
 const salesChannelNameById = computed(() => {
-  const entries = (lookupQuery.data.value?.data?.sales_channels ?? []).map(
-    (channel) => [channel.id, channel.name] as const,
-  )
+  const entries = salesChannels.value.map((channel) => [channel.id, channel.name] as const)
   return new Map<number, string>(entries)
+})
+
+const orderFormLookups = computed(() => {
+  if (!lookupQuery.data.value?.data && salesChannels.value.length === 0) {
+    return null
+  }
+
+  return {
+    sales_channels: salesChannels.value,
+    products: lookupQuery.data.value?.data?.products ?? [],
+  }
 })
 
 const tableRows = computed<OrdersTableRow[]>(() =>
   orders.value.map((order) => ({
     ...order,
     customer_name:
-      customerNameById.value.get(order.customer_id) ?? `Customer #${order.customer_id}`,
+      order.customer_name ??
+      customerNameById.value.get(order.customer_id) ??
+      `Customer #${order.customer_id}`,
     sales_channel_name:
+      order.sales_channel_name ??
       salesChannelNameById.value.get(order.sales_channel_id) ??
       `Channel #${order.sales_channel_id}`,
   })),
@@ -752,7 +775,7 @@ const closeOrderDialog = async () => {
               <SelectContent>
                 <SelectItem value="all">All channels</SelectItem>
                 <SelectItem
-                  v-for="channel in lookupQuery.data.value?.data?.sales_channels ?? []"
+                  v-for="channel in salesChannels"
                   :key="channel.id"
                   :value="String(channel.id)"
                 >
@@ -838,7 +861,12 @@ const closeOrderDialog = async () => {
           <DialogDescription>Create a draft order with items and optional notes.</DialogDescription>
         </DialogHeader>
         <ApiErrorAlert
-          v-if="!isCreateDialogLoading && (customersQuery.error.value || lookupQuery.error.value)"
+          v-if="
+            !isCreateDialogLoading &&
+            (customersQuery.error.value ||
+              lookupQuery.error.value ||
+              salesChannelsQuery.error.value)
+          "
           message="Failed to load order form lookups."
         />
         <div
@@ -851,7 +879,7 @@ const closeOrderDialog = async () => {
           v-else
           mode="create"
           :customers="customersQuery.data.value?.data ?? []"
-          :lookups="lookupQuery.data.value?.data ?? null"
+          :lookups="orderFormLookups"
           :is-submitting="createMutation.isPending.value"
           :api-error="createSubmitError"
           :server-field-errors="createFieldErrors"
@@ -911,12 +939,20 @@ const closeOrderDialog = async () => {
                   </Button>
                 </div>
                 <p>
-                  <span class="font-medium">Customer ID:</span>
-                  {{ detailOrderForDialog.customer_id }}
+                  <span class="font-medium">Customer:</span>
+                  {{
+                    detailOrderForDialog.customer_name ??
+                    customerNameById.get(detailOrderForDialog.customer_id) ??
+                    `Customer #${detailOrderForDialog.customer_id}`
+                  }}
                 </p>
                 <p>
-                  <span class="font-medium">Sales Channel ID:</span>
-                  {{ detailOrderForDialog.sales_channel_id }}
+                  <span class="font-medium">Sales Channel:</span>
+                  {{
+                    detailOrderForDialog.sales_channel_name ??
+                    salesChannelNameById.get(detailOrderForDialog.sales_channel_id) ??
+                    `Channel #${detailOrderForDialog.sales_channel_id}`
+                  }}
                 </p>
                 <p>
                   <span class="font-medium">Total:</span>
@@ -1002,7 +1038,10 @@ const closeOrderDialog = async () => {
         <ApiErrorAlert
           v-if="
             !isEditDialogLoading &&
-            (editOrderQuery.error.value || customersQuery.error.value || lookupQuery.error.value)
+            (editOrderQuery.error.value ||
+              customersQuery.error.value ||
+              lookupQuery.error.value ||
+              salesChannelsQuery.error.value)
           "
           message="Failed to load order edit form."
         />
@@ -1020,7 +1059,7 @@ const closeOrderDialog = async () => {
             mode="edit"
             :initial-order="editOrderForDialog"
             :customers="customersQuery.data.value?.data ?? []"
-            :lookups="lookupQuery.data.value?.data ?? null"
+            :lookups="orderFormLookups"
             :is-submitting="updateMutation.isPending.value"
             :is-disabled="!isEditDraftOrder"
             :api-error="editSubmitError"

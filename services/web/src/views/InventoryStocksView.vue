@@ -14,6 +14,10 @@ import {
 } from '@/components/ui/select'
 import { useAuth } from '@/features/auth/composables/useAuth'
 import { useInventoryStocksQuery } from '@/features/inventory/composables/useInventoryQueries'
+import {
+  INVENTORY_STOCK_CONDITION_OPTIONS,
+  type InventoryStockCondition,
+} from '@/features/inventory/types'
 import InventoryStocksDataTable from '@/features/inventory/ui/InventoryStocksDataTable.vue'
 import { useDebouncedRef } from '@/shared/composables/useDebouncedRef'
 import { useInitialLoadingGate } from '@/shared/composables/useInitialLoadingGate'
@@ -27,6 +31,7 @@ import {
 import { INVENTORY_STOCKS_LIST_FIELDS, useListUiStateStore } from '@/stores/list-ui-state'
 
 const STOCK_STATUS_OPTIONS = ['all', 'active', 'archived'] as const
+const STOCK_CONDITION_FILTER_OPTIONS = ['all', ...INVENTORY_STOCK_CONDITION_OPTIONS] as const
 
 const route = useRoute()
 const router = useRouter()
@@ -58,6 +63,18 @@ const statusFilter = computed<(typeof STOCK_STATUS_OPTIONS)[number]>({
   },
   set: (value) => listUiStore.setState(listModule, { status: value === 'all' ? '' : value }),
 })
+const stockConditionFilter = computed<(typeof STOCK_CONDITION_FILTER_OPTIONS)[number]>({
+  get: () => {
+    const value = listUiStore.modules[listModule].stock_condition
+    if (INVENTORY_STOCK_CONDITION_OPTIONS.includes(value as InventoryStockCondition)) {
+      return value as InventoryStockCondition
+    }
+
+    return 'all'
+  },
+  set: (value) =>
+    listUiStore.setState(listModule, { stock_condition: value === 'all' ? '' : value }),
+})
 const debouncedSearch = useDebouncedRef(searchInput)
 
 const stocksQuery = useInventoryStocksQuery(
@@ -66,6 +83,7 @@ const stocksQuery = useInventoryStocksQuery(
     per_page: perPage.value,
     q: debouncedSearch.value || undefined,
     is_active: statusFilter.value === 'all' ? undefined : statusFilter.value === 'active',
+    stock_condition: stockConditionFilter.value === 'all' ? undefined : stockConditionFilter.value,
   })),
   {
     keepPreviousData: true,
@@ -94,6 +112,10 @@ watch(
     listUiStore.hydrateFromQuery(listModule, normalizedQuery, INVENTORY_STOCKS_LIST_FIELDS, {
       status: (value: string) =>
         STOCK_STATUS_OPTIONS.includes(value as (typeof STOCK_STATUS_OPTIONS)[number]),
+      stock_condition: (value: string) =>
+        STOCK_CONDITION_FILTER_OPTIONS.includes(
+          value as (typeof STOCK_CONDITION_FILTER_OPTIONS)[number],
+        ),
     })
 
     void nextTick().then(() => {
@@ -103,7 +125,7 @@ watch(
   { immediate: true },
 )
 
-watch([debouncedSearch, statusFilter], () => {
+watch([debouncedSearch, statusFilter, stockConditionFilter], () => {
   if (!isSyncingFromRoute.value) {
     page.value = 1
   }
@@ -115,7 +137,7 @@ watch(perPage, () => {
   }
 })
 
-watch([debouncedSearch, statusFilter, page, perPage], () => {
+watch([debouncedSearch, statusFilter, stockConditionFilter, page, perPage], () => {
   if (isSyncingFromRoute.value) {
     return
   }
@@ -131,6 +153,10 @@ watch([debouncedSearch, statusFilter, page, perPage], () => {
     {
       status: (value: string) =>
         STOCK_STATUS_OPTIONS.includes(value as (typeof STOCK_STATUS_OPTIONS)[number]),
+      stock_condition: (value: string) =>
+        STOCK_CONDITION_FILTER_OPTIONS.includes(
+          value as (typeof STOCK_CONDITION_FILTER_OPTIONS)[number],
+        ),
     },
   )
 
@@ -144,6 +170,7 @@ watch([debouncedSearch, statusFilter, page, perPage], () => {
 const resetFilters = () => {
   searchInput.value = ''
   statusFilter.value = 'all'
+  stockConditionFilter.value = 'all'
   perPage.value = 15
   page.value = 1
 }
@@ -181,11 +208,12 @@ const openMovementHistory = async (productId: number) => {
       <CardHeader class="pb-4">
         <CardTitle class="text-base">Search & Filters</CardTitle>
         <CardDescription
-          >Find stock by product or SKU, then narrow by product status.</CardDescription
+          >Find stock by product or SKU, then narrow by stock condition and product
+          status.</CardDescription
         >
       </CardHeader>
       <CardContent class="flex flex-col gap-3">
-        <div class="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
+        <div class="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto_auto] xl:items-end">
           <div class="relative w-full xl:min-w-[360px]">
             <Search class="text-muted-foreground absolute left-3 top-1/2 size-4 -translate-y-1/2" />
             <Input
@@ -201,6 +229,19 @@ const openMovementHistory = async (productId: number) => {
           </div>
 
           <div class="flex flex-wrap items-center gap-2 xl:justify-end">
+            <Select v-model="stockConditionFilter">
+              <SelectTrigger class="w-[200px]" data-test="inventory-stocks-condition-filter">
+                <SelectValue placeholder="Stock condition" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All stock</SelectItem>
+                <SelectItem value="low_stock">Low stock</SelectItem>
+                <SelectItem value="out_of_stock">Out of stock</SelectItem>
+                <SelectItem value="reserved">Reserved stock</SelectItem>
+                <SelectItem value="available">Available stock</SelectItem>
+              </SelectContent>
+            </Select>
+
             <Select v-model="statusFilter">
               <SelectTrigger class="w-[200px]" data-test="inventory-stocks-status-filter">
                 <SelectValue placeholder="Product status" />

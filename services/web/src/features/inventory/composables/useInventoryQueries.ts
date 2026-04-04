@@ -1,6 +1,6 @@
 import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { dashboardKeys, inventoryKeys, reportsKeys } from '@/lib/query-keys'
+import { dashboardKeys, inventoryKeys } from '@/lib/query-keys'
 import {
   createInventoryMovement,
   fetchInventoryMovements,
@@ -53,7 +53,6 @@ export const useCreateInventoryMovementMutation = () => {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: inventoryKeys.all })
       void queryClient.invalidateQueries({ queryKey: dashboardKeys.all })
-      void queryClient.invalidateQueries({ queryKey: reportsKeys.all })
     },
   })
 }
