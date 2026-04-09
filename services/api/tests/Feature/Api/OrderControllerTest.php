@@ -159,10 +159,15 @@ test('show returns order details with status history for same organization', fun
     $user = createOrderApiUserWithRole($organization->id, 'Owner');
 
     $order = createOrderForOrg($organization, $user, OrderStatus::Draft->value);
+    $product = Product::factory()->create([
+        'organization_id' => $organization->id,
+        'name' => 'Longline Winter Jacket With Oversized Faux Fur Collar',
+        'sku' => 'JKT-144',
+    ]);
 
     OrderItem::factory()->create([
         'order_id' => $order->id,
-        'product_id' => Product::factory()->create(['organization_id' => $organization->id])->id,
+        'product_id' => $product->id,
         'quantity' => 2,
         'unit_price' => '10.00',
         'total_price' => '20.00',
@@ -181,6 +186,9 @@ test('show returns order details with status history for same organization', fun
         ->assertJsonPath('data.customer_name', displayNameForCustomer($order->customer))
         ->assertJsonPath('data.sales_channel_name', $order->salesChannel->name)
         ->assertJsonCount(1, 'data.items')
+        ->assertJsonPath('data.items.0.product.id', $product->id)
+        ->assertJsonPath('data.items.0.product.name', $product->name)
+        ->assertJsonPath('data.items.0.product.sku', $product->sku)
         ->assertJsonCount(1, 'data.status_history');
 });
 

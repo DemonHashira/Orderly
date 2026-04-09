@@ -105,43 +105,6 @@ test('mark unpaid creates return and updates status', function () {
         ->and($updatedShipment->id)->toBe($shipment->id);
 });
 
-test('create shipment is idempotent', function () {
-    $order = createOrderWithItem(quantity: 2, status: OrderStatus::ReadyToShip->value);
-    $productId = $order->items->first()->product_id;
-    $stock = InventoryStock::factory()->create([
-        'organization_id' => $order->organization_id,
-        'product_id' => $productId,
-        'qty_on_hand' => 5,
-        'qty_reserved' => 2,
-    ]);
-
-    $service = makeShipmentService();
-
-    $service->createShipment(
-        orderId: $order->id,
-        actorUserId: $order->created_by,
-        courier: 'DHL',
-        trackingNumber: 'TRACK123',
-    );
-
-    $service->createShipment(
-        orderId: $order->id,
-        actorUserId: $order->created_by,
-        courier: 'DHL',
-        trackingNumber: 'TRACK123',
-    );
-
-    $stock->refresh();
-
-    expect($stock->qty_on_hand)->toBe(3)
-        ->and($stock->qty_reserved)->toBe(0)
-        ->and(InventoryMovement::query()->where([
-            'reference_type' => 'Order',
-            'reference_id' => $order->id,
-            'type' => 'sale',
-        ])->count())->toBe(1);
-});
-
 function makeShipmentService(): ShipmentService
 {
     $inventory = new InventoryLedgerService;
@@ -203,5 +166,4 @@ test('create shipment is idempotent and does not double sale movement', function
             ->count())->toBe(1)
         ->and($second->id)->toBe($first->id)
         ->and($second->tracking_number)->toBe('TRACK456');
-
 });

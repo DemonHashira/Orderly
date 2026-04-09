@@ -13,6 +13,7 @@ use App\Models\Shipment;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
@@ -148,6 +149,32 @@ test('logistics manager can create shipment for ready-to-ship order', function (
         'order_id' => $order->id,
         'tracking_number' => 'TRK-0001',
     ]);
+});
+
+test('create shipment preserves provided shipped timestamp', function () {
+    $organization = Organization::factory()->create();
+    $user = createShipmentApiUserWithRole($organization->id, 'Logistics Manager');
+
+    [$order, $product] = createOrderForShipmentApi($organization, $user, OrderStatus::ReadyToShip->value, 2);
+
+    InventoryStock::factory()->create([
+        'organization_id' => $organization->id,
+        'product_id' => $product->id,
+        'qty_on_hand' => 10,
+        'qty_reserved' => 2,
+    ]);
+
+    Sanctum::actingAs($user);
+
+    $shippedAt = '2026-03-31T20:55:00.000Z';
+
+    $this->postJson('/api/orders/'.$order->id.'/shipments', [
+        'courier' => 'DHL',
+        'tracking_number' => 'TRK-LOCAL-TIME',
+        'shipped_at' => $shippedAt,
+    ])
+        ->assertStatus(201)
+        ->assertJsonPath('data.shipped_at', Carbon::parse($shippedAt)->toISOString());
 });
 
 test('create shipment for invalid order status returns 409', function () {

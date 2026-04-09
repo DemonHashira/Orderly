@@ -125,26 +125,6 @@ test('restock return updates inventory', function () {
     ]);
 });
 
-test('restock return is idempotent', function () {
-    $order = createOrderWithItem(quantity: 1, status: OrderStatus::Returned->value);
-    $product = $order->items->first()->product;
-    $stock = createStock($order, qtyOnHand: 5, qtyReserved: 0);
-    $returnOrder = createReturnOrderWithItem($order, $product, quantity: 2, restockable: true);
-    $service = makeReturnService();
-
-    $service->restockReturn($returnOrder->id, $order->created_by);
-    $service->restockReturn($returnOrder->id, $order->created_by);
-
-    $stock->refresh();
-
-    expect($stock->qty_on_hand)->toBe(7)
-        ->and($returnOrder->refresh()->items()->count())->toBe(1)
-        ->and(InventoryMovement::query()->where([
-            'type' => 'return',
-            'reference_id' => $returnOrder->id,
-        ])->count())->toBe(1);
-});
-
 function createReturnOrderWithItem(Order $order, Product $product, int $quantity, bool $restockable): ReturnOrder
 {
     $returnOrder = ReturnOrder::factory()->create(['order_id' => $order->id]);
@@ -189,7 +169,6 @@ test('restock return is idempotent and does not double restock', function () {
             ->where('reference_id', $returnOrder->id)
             ->where('type', 'return')
             ->count())->toBe(1);
-
 });
 
 test('restock return marks the return as restocked', function () {

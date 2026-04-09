@@ -57,6 +57,27 @@ test('show returns same-organization return order details', function () {
         ->assertJsonCount(1, 'data.items');
 });
 
+test('show includes linked order customer name', function () {
+    $organization = Organization::factory()->create();
+    $user = createReturnApiUserWithRole($organization->id, 'Owner');
+
+    [$order, $product] = createReturnedOrderWithItem($organization, $user, 2);
+    $returnOrder = createReturnForOrder($order, $product, quantity: 1, restockable: true);
+
+    Sanctum::actingAs($user);
+
+    $this->getJson('/api/returns/'.$returnOrder->id)
+        ->assertStatus(200)
+        ->assertJsonPath(
+            'data.order.customer_name',
+            trim(implode(' ', array_filter([
+                $order->customer->first_name,
+                $order->customer->middle_name,
+                $order->customer->last_name,
+            ]))),
+        );
+});
+
 test('show returns 404 for cross-organization return order', function () {
     $organization = Organization::factory()->create();
     $otherOrganization = Organization::factory()->create();

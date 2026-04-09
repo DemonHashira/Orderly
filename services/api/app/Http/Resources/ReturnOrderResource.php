@@ -20,6 +20,13 @@ final class ReturnOrderResource extends JsonResource
                 'reference' => (string) $this->order->reference,
                 'current_status' => (string) $this->order->current_status,
                 'customer_id' => (int) $this->order->customer_id,
+                'customer_name' => $this->order->relationLoaded('customer')
+                    ? trim(implode(' ', array_filter([
+                        $this->order->customer->first_name,
+                        $this->order->customer->middle_name,
+                        $this->order->customer->last_name,
+                    ])))
+                    : null,
                 'items' => $this->order->relationLoaded('items')
                     ? OrderItemResource::collection($this->order->items)->resolve($request)
                     : [],

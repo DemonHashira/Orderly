@@ -86,7 +86,7 @@ final class OrderController extends Controller
             ->with([
                 'customer',
                 'salesChannel',
-                'items',
+                'items.product',
                 'statusHistory' => fn ($query) => $query->latest('id'),
             ])
             ->findOrFail($order);

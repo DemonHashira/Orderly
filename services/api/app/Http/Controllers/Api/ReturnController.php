@@ -29,6 +29,7 @@ final class ReturnController extends Controller
             ->whereHas('order', fn ($builder) => $builder->forOrg($orgId))
             ->with([
                 'order:id,organization_id,reference,current_status,customer_id',
+                'order.customer:id,first_name,middle_name,last_name',
                 'items.product:id,name,sku',
             ]);
 
@@ -95,6 +96,7 @@ final class ReturnController extends Controller
             ->where('order_id', $orderModel->id)
             ->with([
                 'order:id,organization_id,reference,current_status,customer_id',
+                'order.customer:id,first_name,middle_name,last_name',
                 'order.items.product:id,name,sku',
                 'items.product:id,name,sku',
             ])
@@ -125,6 +127,7 @@ final class ReturnController extends Controller
 
         return new ReturnOrderResource($returnOrder->refresh()->load([
             'order:id,organization_id,reference,current_status,customer_id',
+            'order.customer:id,first_name,middle_name,last_name',
             'order.items.product:id,name,sku',
             'items.product:id,name,sku',
         ]));
@@ -146,6 +149,7 @@ final class ReturnController extends Controller
 
         return new ReturnOrderResource($returnOrder->load([
             'order:id,organization_id,reference,current_status,customer_id',
+            'order.customer:id,first_name,middle_name,last_name',
             'order.items.product:id,name,sku',
             'items.product:id,name,sku',
         ]));
@@ -157,6 +161,7 @@ final class ReturnController extends Controller
             ->whereHas('order', fn ($builder) => $builder->forOrg($orgId))
             ->with([
                 'order:id,organization_id,reference,current_status,customer_id',
+                'order.customer:id,first_name,middle_name,last_name',
                 'order.items.product:id,name,sku',
                 'items.product:id,name,sku',
             ])

@@ -4,7 +4,6 @@ use App\Domain\Inventory\Exceptions\InsufficientStock;
 use App\Domain\Orders\Exceptions\InvalidOrderTransition;
 use App\Domain\Orders\OrderStatus;
 use App\Models\InventoryStock;
-use App\Models\Order;
 use App\Services\Inventory\InventoryLedgerService;
 use App\Services\Orders\OrderWorkflowService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -63,62 +62,6 @@ test('invalid transition throws exception', function () {
 
     $service->transition($order->id, OrderStatus::Shipped, $order->created_by);
 });
-
-test('transition confirmed to cancelled releases reservation', function () {
-    assertReservationReleasedOnCancel(status: OrderStatus::Confirmed->value, quantity: 2);
-});
-
-test('transition ready to ship to cancelled releases reservation', function () {
-    assertReservationReleasedOnCancel(status: OrderStatus::ReadyToShip->value, quantity: 3);
-});
-
-test('transition to shipped rolls back on insufficient stock', function () {
-    $order = createOrderWithItem(quantity: 2, status: OrderStatus::ReadyToShip->value);
-    $stock = createStock($order, qtyOnHand: 1, qtyReserved: 2);
-    $service = makeOrderWorkflowService();
-
-    try {
-        $service->transition($order->id, OrderStatus::Shipped, $order->created_by);
-        $this->fail('Expected exception was not thrown.');
-    } catch (\Throwable $exception) {
-        assertTransitionRollbackState($order, $stock);
-    }
-});
-
-function assertReservationReleasedOnCancel(string $status, int $quantity): void
-{
-    $order = createOrderWithItem(quantity: $quantity, status: $status);
-    $stock = createStock($order, qtyOnHand: 10, qtyReserved: $quantity);
-    $service = makeOrderWorkflowService();
-
-    $service->transition($order->id, OrderStatus::Cancelled, $order->created_by);
-
-    $stock->refresh();
-    $order->refresh();
-
-    expect($order->current_status)->toBe(OrderStatus::Cancelled->value)
-        ->and($stock->qty_reserved)->toBe(0);
-}
-
-function assertTransitionRollbackState(Order $order, InventoryStock $stock): void
-{
-    $order->refresh();
-    $stock->refresh();
-
-    expect($order->current_status)->toBe(OrderStatus::ReadyToShip->value)
-        ->and($stock->qty_on_hand)->toBe(1)
-        ->and($stock->qty_reserved)->toBe(2);
-    test()->assertDatabaseMissing('inventory_movements', [
-        'organization_id' => $order->organization_id,
-        'product_id' => $order->items->first()->product_id,
-        'reference_type' => 'Order',
-        'reference_id' => $order->id,
-    ]);
-    test()->assertDatabaseMissing('order_status_histories', [
-        'order_id' => $order->id,
-        'status' => OrderStatus::Shipped->value,
-    ]);
-}
 
 test('transition confirmed to cancelled releases reserved stock', function () {
     $order = createOrderWithItem(quantity: 2, status: OrderStatus::Confirmed->value);

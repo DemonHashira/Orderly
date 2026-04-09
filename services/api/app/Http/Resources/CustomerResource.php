@@ -9,11 +9,14 @@ final class CustomerResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        $name = trim(implode(' ', array_filter([
+        $name = [
             $this->first_name,
             $this->middle_name,
             $this->last_name,
-        ])));
+        ]
+                |> array_filter(...)
+                |> (fn ($x) => implode(' ', $x))
+                |> trim(...);
         $address = $this->relationLoaded('defaultAddress') ? $this->defaultAddress : null;
 
         return [
