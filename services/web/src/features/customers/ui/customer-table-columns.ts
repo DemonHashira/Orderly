@@ -12,6 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { OverflowTooltipText } from '@/shared/ui'
 import type { Customer } from '@/types'
 
 export type CustomersTableRow = Customer
@@ -22,6 +23,22 @@ type CustomersTableActions = {
   onView: (id: number) => void
   onEdit: (id: number) => void
   onDelete: (id: number) => void
+}
+
+const sharedColumnWidthClass = 'w-[14.2857%]'
+
+const compactAddress = (row: CustomersTableRow): string => {
+  const address = row.address
+
+  if (!address) {
+    return ''
+  }
+
+  const summary = [address.address_line1, address.address_line2]
+    .filter((value) => value && value.trim() !== '')
+    .join(', ')
+
+  return summary
 }
 
 const sortableHeader = (
@@ -64,23 +81,68 @@ export const buildCustomersTableColumns = (
         },
         () => row.original.name || `Customer #${row.original.id}`,
       ),
+    meta: {
+      className: sharedColumnWidthClass,
+    },
   },
   {
     accessorFn: (row) => row.email ?? '',
     id: 'email',
     header: ({ column }) => sortableHeader('Email', column, 'center'),
-    cell: ({ row }) => h('div', { class: 'text-center' }, row.original.email ?? '-'),
+    cell: ({ row }) =>
+      h(OverflowTooltipText, {
+        text: row.original.email ?? '-',
+        dataTest: 'customers-email-tooltip',
+        triggerClass: 'w-full truncate pr-6 text-center',
+      }),
     meta: {
       align: 'center',
+      className: sharedColumnWidthClass,
     },
   },
   {
     accessorFn: (row) => row.phone ?? '',
     id: 'phone',
     header: ({ column }) => sortableHeader('Phone', column, 'center'),
-    cell: ({ row }) => h('div', { class: 'text-center tabular-nums' }, row.original.phone ?? '-'),
+    cell: ({ row }) =>
+      h('div', { class: 'pl-6 text-center tabular-nums' }, row.original.phone ?? '-'),
     meta: {
       align: 'center',
+      className: sharedColumnWidthClass,
+    },
+  },
+  {
+    accessorFn: (row) => row.address?.city ?? '',
+    id: 'city',
+    header: ({ column }) => sortableHeader('City', column, 'center'),
+    cell: ({ row }) => row.original.address?.city ?? '-',
+    meta: {
+      align: 'center',
+      className: sharedColumnWidthClass,
+    },
+  },
+  {
+    accessorFn: (row) => row.address?.country ?? '',
+    id: 'country',
+    header: ({ column }) => sortableHeader('Country', column, 'center'),
+    cell: ({ row }) => row.original.address?.country ?? '-',
+    meta: {
+      align: 'center',
+      className: sharedColumnWidthClass,
+    },
+  },
+  {
+    accessorFn: (row) => compactAddress(row),
+    id: 'address',
+    header: ({ column }) => sortableHeader('Address', column),
+    cell: ({ row }) =>
+      h(OverflowTooltipText, {
+        text: compactAddress(row.original) || '-',
+        dataTest: 'customers-address-tooltip',
+        triggerClass: 'w-full truncate',
+      }),
+    meta: {
+      className: sharedColumnWidthClass,
     },
   },
   {
@@ -143,5 +205,9 @@ export const buildCustomersTableColumns = (
           ]),
         ]),
       ]),
+    meta: {
+      align: 'right',
+      className: sharedColumnWidthClass,
+    },
   },
 ]

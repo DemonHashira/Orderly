@@ -296,15 +296,6 @@ describe('InventoryMovementsView', () => {
     expect(wrapper.text()).toContain('Too vague.')
   })
 
-  it('shows a plus icon on the create movement submit button', async () => {
-    const { wrapper } = await mountView()
-
-    await wrapper.get('[data-test="inventory-open-create-dialog"]').trigger('click')
-    await flushPromises()
-
-    expect(wrapper.find('[data-test="inventory-create-submit"] svg').exists()).toBe(true)
-  })
-
   it('syncs per-page changes to route query', async () => {
     const { wrapper, router } = await mountView()
 

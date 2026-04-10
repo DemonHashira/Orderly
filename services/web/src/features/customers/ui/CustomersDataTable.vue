@@ -96,33 +96,40 @@ const perPageModel = computed({
 
 const pageLabel = computed(() => `Page ${props.currentPage} of ${props.totalPages}`)
 
-const getAlignmentClass = (align?: string) => {
-  if (align === 'right') {
-    return 'text-right'
+type ColumnMeta = {
+  align?: 'left' | 'center' | 'right'
+  className?: string
+}
+
+const getColumnClass = (meta?: ColumnMeta) => {
+  const classNames: string[] = []
+
+  if (meta?.align === 'right') {
+    classNames.push('text-right')
   }
 
-  if (align === 'center') {
-    return 'text-center'
+  if (meta?.align === 'center') {
+    classNames.push('text-center')
   }
 
-  return undefined
+  if (meta?.className) {
+    classNames.push(meta.className)
+  }
+
+  return classNames
 }
 </script>
 
 <template>
   <div class="space-y-4">
     <div class="rounded-md border">
-      <Table>
+      <Table class="table-fixed">
         <TableHeader>
           <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">
             <TableHead
               v-for="header in headerGroup.headers"
               :key="header.id"
-              :class="
-                getAlignmentClass(
-                  (header.column.columnDef.meta as Record<string, string> | undefined)?.align,
-                )
-              "
+              :class="getColumnClass(header.column.columnDef.meta as ColumnMeta | undefined)"
             >
               <FlexRender
                 v-if="!header.isPlaceholder"
@@ -142,11 +149,7 @@ const getAlignmentClass = (align?: string) => {
             <TableCell
               v-for="cell in row.getVisibleCells()"
               :key="cell.id"
-              :class="
-                getAlignmentClass(
-                  (cell.column.columnDef.meta as Record<string, string> | undefined)?.align,
-                )
-              "
+              :class="getColumnClass(cell.column.columnDef.meta as ColumnMeta | undefined)"
             >
               <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
             </TableCell>

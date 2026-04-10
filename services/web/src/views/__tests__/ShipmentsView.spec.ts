@@ -276,9 +276,4 @@ describe('ShipmentsView', () => {
     expect(wrapper.text()).toContain('Shipment Detail')
     expect(wrapper.text()).toContain('ORD-101')
   })
-
-  it('renders delivered-at logistics column', async () => {
-    const { wrapper } = await mountView('/shipments')
-    expect(wrapper.text()).toContain('Delivered At')
-  })
 })

@@ -25,6 +25,7 @@ import {
   PageHeader,
   PageInitialSkeleton,
   PageRefetchOverlay,
+  OverflowTooltipText,
   StatusBadge,
 } from '@/shared/ui'
 
@@ -147,7 +148,7 @@ const onDelete = async () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Product ID</TableHead>
+                <TableHead>Product</TableHead>
                 <TableHead class="text-right">Qty</TableHead>
                 <TableHead class="text-right">Unit Price</TableHead>
                 <TableHead class="text-right">Total</TableHead>
@@ -155,7 +156,23 @@ const onDelete = async () => {
             </TableHeader>
             <TableBody>
               <TableRow v-for="item in order.items ?? []" :key="item.id">
-                <TableCell>{{ item.product_id }}</TableCell>
+                <TableCell>
+                  <div v-if="item.product?.name" class="max-w-[14rem] space-y-1 sm:max-w-[18rem]">
+                    <OverflowTooltipText
+                      :text="item.product.name"
+                      data-test="tooltip-trigger"
+                      trigger-class="font-medium text-foreground"
+                    />
+                    <p class="text-xs text-muted-foreground">
+                      ID #{{ item.product_id }}
+                      <span v-if="item.product.sku" class="ml-2">SKU {{ item.product.sku }}</span>
+                    </p>
+                  </div>
+                  <div v-else class="space-y-1">
+                    <p class="font-medium text-foreground">Product #{{ item.product_id }}</p>
+                    <p class="text-xs text-muted-foreground">ID #{{ item.product_id }}</p>
+                  </div>
+                </TableCell>
                 <TableCell class="text-right">{{ item.quantity }}</TableCell>
                 <TableCell class="text-right">{{ formatCurrency(item.unit_price) }}</TableCell>
                 <TableCell class="text-right">{{ formatCurrency(item.total_price) }}</TableCell>

@@ -23,6 +23,11 @@ export type OrderItem = {
   quantity: number
   unit_price: string
   total_price: string
+  product?: {
+    id: number
+    name: string
+    sku: string
+  }
 }
 
 export type OrderStatusHistory = {
@@ -61,6 +66,7 @@ export type ReturnOrder = {
     reference: string
     current_status: string
     customer_id?: number
+    customer_name?: string | null
     items?: Array<{
       id: number
       product_id: number

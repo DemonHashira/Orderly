@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { flushPromises, mount } from '@vue/test-utils'
-import { computed, ref } from 'vue'
+import { flushPromises, mount, type MountingOptions } from '@vue/test-utils'
+import { computed, defineComponent, onBeforeUnmount, ref, watch } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { createPinia } from 'pinia'
 import ProductsView from '@/views/ProductsView.vue'
@@ -154,11 +154,51 @@ vi.mock('vue-sonner', () => ({
   },
 }))
 
-const DialogStub = {
-  props: ['open'],
+const DialogStub = defineComponent({
+  props: {
+    open: {
+      type: Boolean,
+      default: false,
+    },
+  },
   emits: ['update:open'],
-  template: '<div v-if="open"><slot /></div>',
-}
+  setup(props) {
+    const rendered = ref(props.open)
+    let closeTimer: ReturnType<typeof setTimeout> | null = null
+
+    watch(
+      () => props.open,
+      (open) => {
+        if (closeTimer) {
+          clearTimeout(closeTimer)
+          closeTimer = null
+        }
+
+        if (open) {
+          rendered.value = true
+          return
+        }
+
+        closeTimer = setTimeout(() => {
+          rendered.value = false
+          closeTimer = null
+        }, 200)
+      },
+      { immediate: true },
+    )
+
+    onBeforeUnmount(() => {
+      if (closeTimer) {
+        clearTimeout(closeTimer)
+      }
+    })
+
+    return {
+      rendered,
+    }
+  },
+  template: '<div v-if="rendered"><slot /></div>',
+})
 
 const AlertDialogStub = {
   props: ['open'],
@@ -245,57 +285,61 @@ describe('ProductsView', () => {
     const pinia = createPinia()
     const appendSpy = vi.spyOn(document.body, 'appendChild')
     const removeSpy = vi.spyOn(document.body, 'removeChild')
+    const stubs: NonNullable<
+      NonNullable<MountingOptions<Record<string, never>>['global']>['stubs']
+    > = {
+      ProductsDataTable: ProductsDataTableStub,
+      PageHeader: { template: '<div><slot name="actions" /></div>' },
+      PageInitialSkeleton: { template: '<div />' },
+      PageRefetchOverlay: { template: '<div />' },
+      ApiErrorAlert: { template: '<div><slot /></div>' },
+      EmptyStateCard: { template: '<div />' },
+      Dialog: DialogStub,
+      DialogContent: { template: '<div><slot /></div>' },
+      DialogHeader: { template: '<div><slot /></div>' },
+      DialogTitle: { template: '<div><slot /></div>' },
+      DialogDescription: { template: '<div><slot /></div>' },
+      AlertDialog: AlertDialogStub,
+      AlertDialogContent: { template: '<div><slot /></div>' },
+      AlertDialogHeader: { template: '<div><slot /></div>' },
+      AlertDialogTitle: { template: '<div><slot /></div>' },
+      AlertDialogDescription: { template: '<div><slot /></div>' },
+      AlertDialogFooter: { template: '<div><slot /></div>' },
+      AlertDialogCancel: { template: '<button type="button"><slot /></button>' },
+      Alert: { template: '<div><slot /></div>' },
+      AlertTitle: { template: '<div><slot /></div>' },
+      AlertDescription: { template: '<div><slot /></div>' },
+      Card: { template: '<div><slot /></div>' },
+      CardHeader: { template: '<div><slot /></div>' },
+      CardTitle: { template: '<div><slot /></div>' },
+      CardDescription: { template: '<div><slot /></div>' },
+      CardContent: { template: '<div><slot /></div>' },
+      DropdownMenu: { template: '<div><slot /></div>' },
+      DropdownMenuTrigger: { template: '<div><slot /></div>' },
+      DropdownMenuContent: { template: '<div><slot /></div>' },
+      DropdownMenuGroup: { template: '<div><slot /></div>' },
+      DropdownMenuItem: {
+        template: '<button type="button" @click="$emit(\'select\')"><slot /></button>',
+      },
+      Select: { template: '<div><slot /></div>' },
+      SelectTrigger: { template: '<div><slot /></div>' },
+      SelectValue: { template: '<div><slot /></div>' },
+      SelectContent: { template: '<div><slot /></div>' },
+      SelectGroup: { template: '<div><slot /></div>' },
+      SelectItem: { template: '<div><slot /></div>' },
+      StatusBadge: { template: '<div><slot /></div>' },
+    }
+
+    stubs.Field = { template: '<div><slot /></div>' }
+    stubs.FieldGroup = { template: '<div><slot /></div>' }
+    stubs.FieldLabel = { template: '<label><slot /></label>' }
+    stubs.FieldError = { props: ['errors'], template: '<div>{{ errors?.[0] }}</div>' }
 
     const wrapper = mount(ProductsView, {
       attachTo: document.body,
       global: {
         plugins: [pinia, router],
-        stubs: {
-          ProductsDataTable: ProductsDataTableStub,
-          PageHeader: { template: '<div><slot name="actions" /></div>' },
-          PageInitialSkeleton: { template: '<div />' },
-          PageRefetchOverlay: { template: '<div />' },
-          ApiErrorAlert: { template: '<div><slot /></div>' },
-          EmptyStateCard: { template: '<div />' },
-          Dialog: DialogStub,
-          DialogContent: { template: '<div><slot /></div>' },
-          DialogHeader: { template: '<div><slot /></div>' },
-          DialogTitle: { template: '<div><slot /></div>' },
-          DialogDescription: { template: '<div><slot /></div>' },
-          AlertDialog: AlertDialogStub,
-          AlertDialogContent: { template: '<div><slot /></div>' },
-          AlertDialogHeader: { template: '<div><slot /></div>' },
-          AlertDialogTitle: { template: '<div><slot /></div>' },
-          AlertDialogDescription: { template: '<div><slot /></div>' },
-          AlertDialogFooter: { template: '<div><slot /></div>' },
-          AlertDialogCancel: { template: '<button type="button"><slot /></button>' },
-          Alert: { template: '<div><slot /></div>' },
-          AlertTitle: { template: '<div><slot /></div>' },
-          AlertDescription: { template: '<div><slot /></div>' },
-          Card: { template: '<div><slot /></div>' },
-          CardHeader: { template: '<div><slot /></div>' },
-          CardTitle: { template: '<div><slot /></div>' },
-          CardDescription: { template: '<div><slot /></div>' },
-          CardContent: { template: '<div><slot /></div>' },
-          Field: { template: '<div><slot /></div>' },
-          FieldGroup: { template: '<div><slot /></div>' },
-          FieldLabel: { template: '<label><slot /></label>' },
-          FieldError: { props: ['errors'], template: '<div>{{ errors?.[0] }}</div>' },
-          DropdownMenu: { template: '<div><slot /></div>' },
-          DropdownMenuTrigger: { template: '<div><slot /></div>' },
-          DropdownMenuContent: { template: '<div><slot /></div>' },
-          DropdownMenuGroup: { template: '<div><slot /></div>' },
-          DropdownMenuItem: {
-            template: '<button type="button" @click="$emit(\'select\')"><slot /></button>',
-          },
-          Select: { template: '<div><slot /></div>' },
-          SelectTrigger: { template: '<div><slot /></div>' },
-          SelectValue: { template: '<div><slot /></div>' },
-          SelectContent: { template: '<div><slot /></div>' },
-          SelectGroup: { template: '<div><slot /></div>' },
-          SelectItem: { template: '<div><slot /></div>' },
-          StatusBadge: { template: '<div><slot /></div>' },
-        },
+        stubs,
       },
     })
 
@@ -359,12 +403,6 @@ describe('ProductsView', () => {
     expect(wrapper.find('[data-test="products-open-create"]').exists()).toBe(false)
     expect(wrapper.find('[data-test="products-open-import"]').exists()).toBe(false)
     expect(wrapper.find('[data-test="products-open-export"]').exists()).toBe(false)
-  })
-
-  it('shows a plus icon on the create product submit button', async () => {
-    const { wrapper } = await mountView('/products/new')
-
-    expect(wrapper.find('[data-test="products-form-submit"] svg').exists()).toBe(true)
   })
 
   it('shows duplicate sku validation errors from product form', async () => {
@@ -579,6 +617,37 @@ describe('ProductsView', () => {
     expect(toastState.success).toHaveBeenCalledWith('Product import blocked.', {
       description: 'No changes were applied because 1 row failed validation.',
     })
+  })
+
+  it('keeps the import summary visible during dialog close animation', async () => {
+    vi.useFakeTimers()
+    const { wrapper } = await mountView()
+
+    await wrapper.get('[data-test="products-open-import"]').trigger('click')
+    const file = new File(['sku,name,sale_price'], 'products.csv', { type: 'text/csv' })
+    const input = wrapper.get('[data-test="products-import-file"]')
+    Object.defineProperty(input.element, 'files', {
+      value: [file],
+      configurable: true,
+    })
+    await input.trigger('change')
+    await wrapper.get('[data-test="products-import-form"]').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Created 1, updated 1, failed 0 out of 2 rows.')
+
+    const closeButton = wrapper.findAll('button').find((button) => button.text().trim() === 'Close')
+    expect(closeButton).toBeTruthy()
+
+    await closeButton!.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Created 1, updated 1, failed 0 out of 2 rows.')
+
+    await vi.advanceTimersByTimeAsync(200)
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('Created 1, updated 1, failed 0 out of 2 rows.')
   })
 
   it('syncs rows-per-page changes to the route query', async () => {

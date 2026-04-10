@@ -117,10 +117,21 @@ export const buildReturnsTableColumns = (
       id: 'order_status',
       header: () => h('div', { class: 'text-center' }, 'Order Status'),
       cell: ({ row }) =>
-        h('div', { class: 'flex justify-center' }, [
+        h('div', { class: 'flex flex-wrap justify-center gap-2' }, [
           h(StatusBadge, {
             status: row.original.order?.current_status ?? 'returned',
           }),
+          row.original.restocked_at
+            ? h(
+                'span',
+                {
+                  class:
+                    'inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700',
+                  'data-test': `returns-restocked-state-${row.original.id}`,
+                },
+                'Restocked',
+              )
+            : null,
         ]),
       meta: {
         align: 'center',

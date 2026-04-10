@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Download, Plus, Search, Upload } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
@@ -29,6 +29,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -96,6 +97,8 @@ const importFile = ref<File | null>(null)
 const importFieldErrors = ref<Record<string, string>>({})
 const importSubmitError = ref('')
 const importSummary = ref<ProductImportSummary | null>(null)
+const IMPORT_DIALOG_RESET_DELAY_MS = 200
+let importDialogResetTimer: ReturnType<typeof setTimeout> | null = null
 const exportSubmitError = ref('')
 const persistedDetailProduct = ref<Product | null>(null)
 const productForm = ref(createEmptyProductDialogForm())
@@ -382,12 +385,30 @@ watch([isCreateRoute, isEditRoute, detailProductForDialog], () => {
   }
 })
 
+const resetImportDialogState = () => {
+  importFile.value = null
+  importFieldErrors.value = {}
+  importSubmitError.value = ''
+  importSummary.value = null
+}
+
 watch(importDialogOpen, (open) => {
+  if (importDialogResetTimer) {
+    clearTimeout(importDialogResetTimer)
+    importDialogResetTimer = null
+  }
+
   if (!open) {
-    importFile.value = null
-    importFieldErrors.value = {}
-    importSubmitError.value = ''
-    importSummary.value = null
+    importDialogResetTimer = setTimeout(() => {
+      resetImportDialogState()
+      importDialogResetTimer = null
+    }, IMPORT_DIALOG_RESET_DELAY_MS)
+  }
+})
+
+onBeforeUnmount(() => {
+  if (importDialogResetTimer) {
+    clearTimeout(importDialogResetTimer)
   }
 })
 
@@ -935,7 +956,7 @@ const exportWithFormat = async (format: ProductExportFormat) => {
           </Alert>
 
           <Card v-if="importSummary && importSummary.errors.length > 0" class="gap-0">
-            <CardHeader class="pb-3">
+            <CardHeader class="pb-3 gap-0">
               <CardTitle class="text-base">Row errors</CardTitle>
             </CardHeader>
             <CardContent class="space-y-2 text-sm">

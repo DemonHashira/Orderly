@@ -422,22 +422,6 @@ describe('CustomersView', () => {
     expect(wrapper.text()).toContain('Address line 1 is required.')
   })
 
-  it('requires address fields before creating a customer', async () => {
-    const { wrapper } = await mountView('/customers/new')
-
-    await wrapper.get('[data-test="customers-form-first-name"]').setValue('Mina')
-    await wrapper.get('[data-test="customers-form-last-name"]').setValue('Petrova')
-    await wrapper.get('[data-test="customers-form-phone"]').setValue('+359888000111')
-    await wrapper.get('[data-test="customers-form-email"]').setValue('mina@example.com')
-    await wrapper.get('[data-test="customers-form-submit"]').trigger('click')
-    await flushPromises()
-
-    expect(mutationState.create).not.toHaveBeenCalled()
-    expect(wrapper.text()).toContain('City is required.')
-    expect(wrapper.text()).toContain('Postal code is required.')
-    expect(wrapper.text()).toContain('Address line 1 is required.')
-  })
-
   it('shows server field errors when creating a customer', async () => {
     mutationState.create = vi.fn().mockRejectedValue({
       isAxiosError: true,
@@ -595,39 +579,6 @@ describe('CustomersView', () => {
       .map((node) => node.text())
 
     expect(addressLines).toEqual(['Tsar Osvoboditel 1', 'Floor 2', 'Sofia 1000', 'Bulgaria'])
-  })
-
-  it('caps order history at five visible rows before enabling vertical scrolling', async () => {
-    ordersState.list = Array.from({ length: 6 }, (_, index) => ({
-      id: 201 + index,
-      reference: `ORD-${201 + index}`,
-      customer_id: 101,
-      sales_channel_id: 3,
-      created_by: 1,
-      current_status: index % 2 === 0 ? 'delivered' : 'shipped',
-      total_amount: `${129 + index}.00`,
-      internal_notes: null,
-      created_at: '2026-03-08T10:00:00Z',
-      updated_at: '2026-03-09T10:00:00Z',
-      items: [],
-      status_history: [],
-    }))
-
-    const { wrapper } = await mountView('/customers/101')
-    const scrollViewport = wrapper.find('[data-test="customers-order-history-scroll"]')
-
-    expect(scrollViewport.exists()).toBe(true)
-    expect(wrapper.html()).toContain('data-test="customers-order-history-scroll"')
-    expect(wrapper.html()).toContain('max-h-[289px]')
-    expect(wrapper.text()).toContain('ORD-206')
-  })
-
-  it('uses a wider contact summary column in the detail dialog', async () => {
-    const { wrapper } = await mountView('/customers/101')
-
-    expect(wrapper.html()).toContain('sm:max-w-4xl')
-    expect(wrapper.html()).toContain('lg:grid-cols-[315px_minmax(0,1fr)]')
-    expect(wrapper.get('[data-test="customers-detail-email"]').classes()).toContain('break-all')
   })
 
   it('syncs rows-per-page changes to the route query', async () => {

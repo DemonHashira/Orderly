@@ -72,9 +72,10 @@ import { ORDERS_LIST_FIELDS, useListUiStateStore } from '@/stores/list-ui-state'
 import {
   ApiErrorAlert,
   CourierComboboxInput,
-  DatePickerInput,
+  DateTimePickerInput,
   DateRangeFilter,
   EmptyStateCard,
+  OverflowTooltipText,
   PageHeader,
   PageInitialSkeleton,
   PageRefetchOverlay,
@@ -148,6 +149,12 @@ const canConfirm = computed(() => permissions.value.includes('orders.status.conf
 const canReadyToShip = computed(() => permissions.value.includes('orders.status.ready_to_ship'))
 const canCancel = computed(() => permissions.value.includes('orders.status.cancel'))
 const canCreateShipment = computed(() => permissions.value.includes('shipments.create'))
+const isCreateRoute = computed(() => route.name === 'order-create')
+const isDetailRoute = computed(() => route.name === 'order-detail')
+const isEditRoute = computed(() => route.name === 'order-edit')
+const shouldLoadOrderFormSupportData = computed(
+  () => (isCreateRoute.value && canCreate.value) || (isEditRoute.value && canEditDraft.value),
+)
 
 const customersQuery = useCustomersQuery(
   computed(() => ({
@@ -155,9 +162,10 @@ const customersQuery = useCustomersQuery(
   })),
   {
     allPages: true,
+    enabled: shouldLoadOrderFormSupportData,
   },
 )
-const lookupQuery = useOrderCreateLookupQuery()
+const lookupQuery = useOrderCreateLookupQuery(shouldLoadOrderFormSupportData)
 const salesChannelsQuery = useSalesChannelsQuery(salesChannelSearch)
 
 const ordersQuery = useOrdersQuery(
@@ -180,9 +188,6 @@ const deleteMutation = useDeleteOrderMutation()
 const createMutation = useCreateOrderMutation()
 const createShipmentMutation = useCreateShipmentMutation()
 const updateMutation = useUpdateOrderMutation()
-const isCreateRoute = computed(() => route.name === 'order-create')
-const isDetailRoute = computed(() => route.name === 'order-detail')
-const isEditRoute = computed(() => route.name === 'order-edit')
 const detailOrderId = computed(() => Number(route.params.id))
 const detailOrderQuery = useOrderQuery(detailOrderId)
 const detailOrder = computed(() => detailOrderQuery.data.value?.data ?? null)
@@ -452,6 +457,34 @@ const openActionDialog = (type: PendingActionType, orderId: number) => {
   pendingAction.value = { type, orderId }
 }
 
+const formatActionErrorMessage = (type: PendingActionType, error: unknown) => {
+  const normalized = normalizeApiError(error)
+
+  if (type === 'confirm') {
+    const stockConflict = normalized.message.match(
+      /Insufficient available stock for product_id=(\d+)\.\s*Available:\s*([^,]+),\s*Required:\s*(.+)$/i,
+    )
+
+    if (stockConflict) {
+      const [, productId, available, required] = stockConflict
+
+      return `Order could not be confirmed because stock is too low for product #${productId}. Available: ${available}. Required: ${required}. Review inventory or reduce the quantity before trying again.`
+    }
+
+    return `Order could not be confirmed. ${normalized.message}`
+  }
+
+  if (type === 'ready') {
+    return `Order could not be marked ready to ship. ${normalized.message}`
+  }
+
+  if (type === 'cancel') {
+    return `Order could not be cancelled. ${normalized.message}`
+  }
+
+  return `Draft order could not be deleted. ${normalized.message}`
+}
+
 const onConfirmAction = async () => {
   if (!pendingAction.value) {
     return
@@ -476,7 +509,9 @@ const onConfirmAction = async () => {
     }
     pendingAction.value = null
   } catch (error: unknown) {
-    mutationError.value = normalizeApiError(error).message
+    pendingAction.value = null
+    mutationError.value = ''
+    toast.error(formatActionErrorMessage(type, error))
   }
 }
 
@@ -521,13 +556,73 @@ const resetShipmentForm = () => {
   }
 }
 
-const normalizeDateInput = (value?: string | null): string => {
+const formatLocalDateTimeInput = (value: Date): string => {
+  const year = value.getFullYear()
+  const month = String(value.getMonth() + 1).padStart(2, '0')
+  const day = String(value.getDate()).padStart(2, '0')
+  const hours = String(value.getHours()).padStart(2, '0')
+  const minutes = String(value.getMinutes()).padStart(2, '0')
+
+  return `${year}-${month}-${day}T${hours}:${minutes}`
+}
+
+const normalizeShipmentDateTimeInput = (value?: string | null): string => {
   if (!value) {
     return ''
   }
 
   const trimmed = value.trim()
-  const match = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})(?:$|T)/)
+  const dateOnlyMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (dateOnlyMatch) {
+    const year = Number(dateOnlyMatch[1])
+    const month = Number(dateOnlyMatch[2])
+    const day = Number(dateOnlyMatch[3])
+    const date = new Date(year, month - 1, day, 0, 0, 0, 0)
+
+    if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+      return ''
+    }
+
+    return formatLocalDateTimeInput(date)
+  }
+
+  const dateTimeMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/)
+  if (dateTimeMatch) {
+    const year = Number(dateTimeMatch[1])
+    const month = Number(dateTimeMatch[2])
+    const day = Number(dateTimeMatch[3])
+    const hours = Number(dateTimeMatch[4])
+    const minutes = Number(dateTimeMatch[5])
+    const date = new Date(year, month - 1, day, hours, minutes, 0, 0)
+
+    if (
+      date.getFullYear() !== year ||
+      date.getMonth() !== month - 1 ||
+      date.getDate() !== day ||
+      date.getHours() !== hours ||
+      date.getMinutes() !== minutes
+    ) {
+      return ''
+    }
+
+    return formatLocalDateTimeInput(date)
+  }
+
+  const date = new Date(trimmed)
+  if (Number.isNaN(date.getTime())) {
+    return ''
+  }
+
+  return formatLocalDateTimeInput(date)
+}
+
+const toShipmentTimestamp = (value?: string | null): string => {
+  const normalizedValue = normalizeShipmentDateTimeInput(value)
+  if (!normalizedValue) {
+    return ''
+  }
+
+  const match = normalizedValue.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/)
   if (!match) {
     return ''
   }
@@ -535,21 +630,21 @@ const normalizeDateInput = (value?: string | null): string => {
   const year = Number(match[1])
   const month = Number(match[2])
   const day = Number(match[3])
+  const hours = Number(match[4])
+  const minutes = Number(match[5])
+  const date = new Date(year, month - 1, day, hours, minutes, 0, 0)
 
-  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
-    return ''
-  }
-
-  const date = new Date(Date.UTC(year, month - 1, day))
   if (
-    date.getUTCFullYear() !== year ||
-    date.getUTCMonth() !== month - 1 ||
-    date.getUTCDate() !== day
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day ||
+    date.getHours() !== hours ||
+    date.getMinutes() !== minutes
   ) {
     return ''
   }
 
-  return `${match[1]}-${match[2]}-${match[3]}`
+  return date.toISOString()
 }
 
 watch(
@@ -568,7 +663,7 @@ watch(
     }
 
     if (shipmentForm.value.shipped_at.length === 0) {
-      const shippedAt = normalizeDateInput(shipment.shipped_at)
+      const shippedAt = normalizeShipmentDateTimeInput(shipment.shipped_at)
       if (shippedAt) {
         shipmentForm.value.shipped_at = shippedAt
       }
@@ -626,9 +721,9 @@ const onShipmentSubmit = async () => {
   shipmentFieldErrors.value = {}
 
   const normalizedTrackingNumber = shipmentForm.value.tracking_number.trim()
-  const normalizedShippedAt = normalizeDateInput(shipmentForm.value.shipped_at)
+  const normalizedShippedAt = toShipmentTimestamp(shipmentForm.value.shipped_at)
   const existingTrackingNumber = existingShipment.value?.tracking_number?.trim() ?? ''
-  const existingShippedAt = normalizeDateInput(existingShipment.value?.shipped_at)
+  const existingShippedAt = toShipmentTimestamp(existingShipment.value?.shipped_at)
   const resolvedTrackingNumber = normalizedTrackingNumber || existingTrackingNumber
   const resolvedShippedAt = normalizedShippedAt || existingShippedAt
   const isUpdatingShipment = shipmentOrder.value.current_status === 'shipped'
@@ -1006,7 +1101,7 @@ const closeOrderDialog = async () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Product ID</TableHead>
+                    <TableHead>Product</TableHead>
                     <TableHead class="text-right">Qty</TableHead>
                     <TableHead class="text-right">Unit Price</TableHead>
                     <TableHead class="text-right">Total</TableHead>
@@ -1014,7 +1109,28 @@ const closeOrderDialog = async () => {
                 </TableHeader>
                 <TableBody>
                   <TableRow v-for="item in detailOrderForDialog.items ?? []" :key="item.id">
-                    <TableCell>{{ item.product_id }}</TableCell>
+                    <TableCell>
+                      <div
+                        v-if="item.product?.name"
+                        class="max-w-[14rem] space-y-1 sm:max-w-[18rem]"
+                      >
+                        <OverflowTooltipText
+                          :text="item.product.name"
+                          data-test="orders-detail-tooltip-trigger"
+                          trigger-class="font-medium text-foreground"
+                        />
+                        <p class="text-xs text-muted-foreground">
+                          ID #{{ item.product_id }}
+                          <span v-if="item.product.sku" class="ml-2">
+                            SKU {{ item.product.sku }}
+                          </span>
+                        </p>
+                      </div>
+                      <div v-else class="space-y-1">
+                        <p class="font-medium text-foreground">Product #{{ item.product_id }}</p>
+                        <p class="text-xs text-muted-foreground">ID #{{ item.product_id }}</p>
+                      </div>
+                    </TableCell>
                     <TableCell class="text-right">{{ item.quantity }}</TableCell>
                     <TableCell class="text-right">{{ formatCurrency(item.unit_price) }}</TableCell>
                     <TableCell class="text-right">{{ formatCurrency(item.total_price) }}</TableCell>
@@ -1128,13 +1244,14 @@ const closeOrderDialog = async () => {
 
           <div class="space-y-2">
             <label class="text-sm font-medium" for="shipment-shipped-at">Shipped at</label>
-            <DatePickerInput
+            <DateTimePickerInput
               :model-value="shipmentForm.shipped_at"
               trigger-id="shipment-shipped-at"
               data-test="shipment-shipped-at"
               button-class="w-full"
-              @update:model-value="(value) => (shipmentForm.shipped_at = value)"
+              @update:model-value="(value) => (shipmentForm.shipped_at = String(value))"
             />
+            <p class="text-xs text-muted-foreground">Optional. Uses your local date and time.</p>
             <p v-if="shipmentFieldErrors.shipped_at" class="text-xs text-destructive">
               {{ shipmentFieldErrors.shipped_at }}
             </p>

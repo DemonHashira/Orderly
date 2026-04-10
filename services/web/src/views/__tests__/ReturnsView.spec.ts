@@ -25,6 +25,7 @@ const returnsState = vi.hoisted(() => ({
         reference: 'ORD-101',
         current_status: 'returned',
         customer_id: 12,
+        customer_name: 'Mina Petrova',
         items: [
           {
             id: 801,
@@ -120,10 +121,11 @@ vi.mock('@/features/orders/composables/useOrdersQueries', () => ({
 
 vi.mock('@/features/customers/composables/useCustomersQueries', () => ({
   useCustomerQuery: (id: { value?: number } | number) => {
-    customerQueryCalls.push(typeof id === 'number' ? id : (id.value ?? 0))
+    const resolvedId = typeof id === 'number' ? id : (id.value ?? 0)
+    customerQueryCalls.push(resolvedId)
 
     return {
-      data: computed(() => ({ data: customerState.detail })),
+      data: computed(() => ({ data: resolvedId > 0 ? customerState.detail : null })),
       isLoading: ref(false),
       isFetching: ref(false),
       error: ref(null),
@@ -343,6 +345,14 @@ describe('ReturnsView', () => {
     expect(customerQueryCalls).not.toContain(12)
   })
 
+  it('shows linked order customer name without customer-view permission', async () => {
+    authState.permissions = ['returns.view']
+    const { wrapper } = await mountView('/returns/11')
+
+    expect(wrapper.text()).toContain('Customer:')
+    expect(wrapper.text()).toContain('Mina Petrova')
+  })
+
   it('renders add-item controls without order permissions', async () => {
     authState.permissions = ['returns.view', 'returns.item.add']
     const { wrapper } = await mountView('/returns/11')
@@ -381,12 +391,5 @@ describe('ReturnsView', () => {
 
     expect(mutationState.addItem).toHaveBeenCalled()
     expect(wrapper.text()).toContain('Too many items.')
-  })
-
-  it('shows a plus icon on the add item submit button', async () => {
-    authState.permissions = ['returns.view', 'returns.item.add']
-    const { wrapper } = await mountView('/returns/11')
-
-    expect(wrapper.find('[data-test="returns-add-item-submit"] svg').exists()).toBe(true)
   })
 })

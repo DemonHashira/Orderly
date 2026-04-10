@@ -180,6 +180,10 @@ const detailCustomerId = computed(() => {
 const detailCustomerQuery = useCustomerQuery(detailCustomerId)
 const detailCustomer = computed(() => detailCustomerQuery.data.value?.data ?? null)
 const detailCustomerLabel = computed(() => {
+  if (detailReturnForDialog.value?.order?.customer_name) {
+    return detailReturnForDialog.value.order.customer_name
+  }
+
   if (detailCustomerQuery.isLoading.value && detailCustomerId.value > 0) {
     return 'Loading customer…'
   }
