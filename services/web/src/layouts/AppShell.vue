@@ -48,6 +48,7 @@ import {
   NAV_ITEMS,
   type NavGroup,
 } from '@/features/navigation/nav-items'
+import { useRouteTransitionScrollReset } from '@/app/composables/useRouteTransitionScrollReset'
 
 const route = useRoute()
 const router = useRouter()
@@ -55,6 +56,7 @@ const listUiStore = useListUiStateStore()
 
 const logoutMutation = useLogoutMutation()
 const { permissions, roles, user } = useAuth()
+const { onBeforeEnter } = useRouteTransitionScrollReset()
 
 if (typeof window !== 'undefined') {
 }
@@ -163,24 +165,26 @@ const onGoToChangePassword = async () => {
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup v-for="[group, items] in groupedItems" :key="group">
-          <SidebarGroupLabel>{{ NAV_GROUP_LABELS[group] }}</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem v-for="item in items" :key="item.id">
-                <SidebarMenuButton
-                  as-child
-                  :is-active="route.path === item.to || route.path.startsWith(`${item.to}/`)"
-                >
-                  <RouterLink :to="item.to">
-                    <component :is="item.icon" />
-                    <span>{{ item.label }}</span>
-                  </RouterLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <nav aria-label="Primary">
+          <SidebarGroup v-for="[group, items] in groupedItems" :key="group">
+            <SidebarGroupLabel>{{ NAV_GROUP_LABELS[group] }}</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem v-for="item in items" :key="item.id">
+                  <SidebarMenuButton
+                    as-child
+                    :is-active="route.path === item.to || route.path.startsWith(`${item.to}/`)"
+                  >
+                    <RouterLink :to="item.to">
+                      <component :is="item.icon" />
+                      <span>{{ item.label }}</span>
+                    </RouterLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </nav>
       </SidebarContent>
 
       <SidebarFooter class="border-t p-2">
@@ -239,7 +243,7 @@ const onGoToChangePassword = async () => {
               <SheetTitle>Navigation</SheetTitle>
             </SheetHeader>
             <div class="p-4">
-              <nav class="space-y-1">
+              <nav aria-label="Primary" class="space-y-1">
                 <RouterLink
                   v-for="item in visibleItems"
                   :key="item.id"
@@ -292,16 +296,21 @@ const onGoToChangePassword = async () => {
         </div>
       </header>
 
-      <main class="flex flex-1 flex-col gap-4 p-4 md:p-6">
+      <div class="flex flex-1 flex-col gap-4 p-4 md:p-6">
         <RouterView v-slot="{ Component, route: currentRoute }">
-          <Transition :name="currentRoute.meta.transition ?? 'app-page'" mode="out-in" appear>
+          <Transition
+            :name="currentRoute.meta.transition ?? 'app-page'"
+            mode="out-in"
+            appear
+            @before-enter="onBeforeEnter"
+          >
             <component
               :is="Component"
               :key="String(currentRoute.meta.viewKey ?? currentRoute.path)"
             />
           </Transition>
         </RouterView>
-      </main>
+      </div>
     </SidebarInset>
   </SidebarProvider>
 </template>

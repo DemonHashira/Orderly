@@ -1,10 +1,12 @@
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { authKeys } from '@/lib/query-keys'
 import { getCsrfCookie, logout as logoutApi } from '@/features/auth/api/auth.api'
+import { useListUiStateStore } from '@/stores/list-ui-state'
 import { normalizeApiError } from '@/shared/api/errors'
 
 export const useLogoutMutation = () => {
   const queryClient = useQueryClient()
+  const listUiStateStore = useListUiStateStore()
 
   return useMutation({
     mutationFn: async () => {
@@ -37,6 +39,7 @@ export const useLogoutMutation = () => {
       }
     },
     onSettled: () => {
+      listUiStateStore.resetAll()
       queryClient.removeQueries({ queryKey: authKeys.me() })
     },
   })

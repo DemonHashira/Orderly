@@ -127,6 +127,10 @@ export const useListUiStateStore = defineStore('list-ui-state', {
       Object.assign(this.modules[module], createDefaultState(module), patch ?? {})
     },
 
+    resetAll() {
+      this.modules = createInitialModules()
+    },
+
     hasRelevantQuery(query: QueryRecord, fields: ListUiField[] = defaultFields) {
       return fields.some((field) => asSingleQueryValue(query[field]) != null)
     },

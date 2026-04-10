@@ -9,6 +9,7 @@ describe('App', () => {
       global: {
         stubs: {
           RouterView: true,
+          SmoothScrollController: true,
           Toaster: {
             name: 'Toaster',
             template: '<div data-test="toaster" />',

@@ -79,6 +79,23 @@ describe('useListUiStateStore', () => {
     expect(nextStore.modules.products.per_page).toBe(15)
   })
 
+  it('resets all persisted list modules back to their defaults', () => {
+    const store = useListUiStateStore()
+    store.setState('orders', { q: 'OC-2026', status: 'ready_to_ship', page: 3 })
+    store.setState('inventory_stocks', { q: 'hoodie', stock_condition: 'low_stock', page: 2 })
+
+    store.resetAll()
+
+    setActivePinia(buildTestingPinia())
+    const nextStore = useListUiStateStore()
+    expect(nextStore.modules.orders.q).toBe('')
+    expect(nextStore.modules.orders.status).toBe('all')
+    expect(nextStore.modules.orders.page).toBe(1)
+    expect(nextStore.modules.inventory_stocks.q).toBe('')
+    expect(nextStore.modules.inventory_stocks.stock_condition).toBe('')
+    expect(nextStore.modules.inventory_stocks.page).toBe(1)
+  })
+
   it('keeps query params as precedence over persisted fallback', () => {
     const store = useListUiStateStore()
     store.setState('team_users', { q: 'persisted', page: 7 })

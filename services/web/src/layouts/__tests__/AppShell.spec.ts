@@ -37,6 +37,12 @@ vi.mock('@/features/navigation/nav-items', () => ({
   getQuickActionsByPermissions: () => [],
 }))
 
+vi.mock('@/app/composables/useRouteTransitionScrollReset', () => ({
+  useRouteTransitionScrollReset: () => ({
+    onBeforeEnter: vi.fn(),
+  }),
+}))
+
 describe('AppShell account menu', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
@@ -77,7 +83,7 @@ describe('AppShell account menu', () => {
           SidebarMenuItem: { template: '<div><slot /></div>' },
           SidebarMenuButton: { template: '<div><slot /></div>' },
           SidebarRail: { template: '<div />' },
-          SidebarInset: { template: '<div><slot /></div>' },
+          SidebarInset: { template: '<main data-test="sidebar-inset"><slot /></main>' },
           SidebarTrigger: { template: '<button><slot /></button>' },
           DropdownMenu: { template: '<div><slot /></div>' },
           DropdownMenuTrigger: { template: '<div><slot /></div>' },
@@ -136,5 +142,16 @@ describe('AppShell account menu', () => {
 
     expect(logoutMutateAsync).toHaveBeenCalledTimes(1)
     expect(pushSpy).toHaveBeenCalledWith('/login')
+  })
+
+  it('uses a single main landmark and exposes primary navigation', async () => {
+    const { wrapper } = await mountShell()
+    const shellMain = wrapper.get('[data-test="sidebar-inset"]').element
+    const nestedMainChildren = Array.from(shellMain.children).filter(
+      (element) => element.tagName.toLowerCase() === 'main',
+    )
+
+    expect(nestedMainChildren).toHaveLength(0)
+    expect(wrapper.find('nav[aria-label="Primary"]').exists()).toBe(true)
   })
 })

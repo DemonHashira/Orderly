@@ -4,7 +4,7 @@ import LoginForm from '@/features/auth/ui/LoginForm.vue'
 </script>
 
 <template>
-  <div class="grid min-h-svh overflow-hidden lg:grid-cols-2">
+  <main class="grid min-h-svh overflow-hidden lg:grid-cols-2">
     <div
       class="animate-in fade-in-0 slide-in-from-left-2 duration-500 flex flex-col gap-4 p-6 md:p-10"
     >
@@ -40,5 +40,5 @@ import LoginForm from '@/features/auth/ui/LoginForm.vue'
         <footer class="text-base font-semibold">Orderly Philosophy</footer>
       </blockquote>
     </div>
-  </div>
+  </main>
 </template>
