@@ -251,28 +251,13 @@ describe('ReportsReturnsView', () => {
     await flushPromises()
   }
 
-  it('renders returns insights and workspace shortcuts', async () => {
-    const { wrapper } = await mountView()
-
-    expect(wrapper.text()).toContain('Returns Report')
-    expect(wrapper.text()).toContain('Order status buckets')
-    expect(wrapper.text()).toContain(
-      'Distinct order statuses among orders with returns in this range.',
-    )
-    expect(wrapper.text()).toContain('Overview')
-    expect(wrapper.text()).toContain('Exceptions')
-    expect(wrapper.text()).toContain('Breakdowns')
-    expect(wrapper.text()).toContain('Compare to previous period')
-    expect(wrapper.text()).toContain('Open restock queue')
-  })
-
   it('renders returns exception and breakdown sections', async () => {
     const { wrapper } = await mountView()
 
     await clickTab(wrapper, 'Exceptions')
 
-    expect(wrapper.text()).toContain('Pending restock')
-    expect(wrapper.text()).toContain('Write-off products')
+    expect(wrapper.text()).toContain('Waiting to restock')
+    expect(wrapper.text()).toContain('Items to write off')
     expect(wrapper.text()).toContain('Grace Hopper')
 
     await clickTab(wrapper, 'Breakdowns')

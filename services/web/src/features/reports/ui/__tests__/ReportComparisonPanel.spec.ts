@@ -40,9 +40,9 @@ describe('ReportComparisonPanel', () => {
     })
 
     expect(wrapper.text()).toContain('+$17,700.45')
-    expect(wrapper.text()).toContain('Up')
-    expect(wrapper.text()).toContain('Unchanged')
-    expect(wrapper.text()).toContain('Comparison metrics above the previous period.')
+    expect(wrapper.text()).toContain('Higher')
+    expect(wrapper.text()).toContain('No change')
+    expect(wrapper.text()).toContain('Metrics that are higher than the previous period.')
   })
 
   it('shows the empty all-time state when comparison metrics are unavailable', () => {

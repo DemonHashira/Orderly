@@ -26,21 +26,21 @@ const directionSummary = computed(() => {
   return [
     {
       id: 'up',
-      label: 'Up',
+      label: 'Higher',
       value: String(up),
-      description: 'Comparison metrics above the previous period.',
+      description: 'Metrics that are higher than the previous period.',
     },
     {
       id: 'down',
-      label: 'Down',
+      label: 'Lower',
       value: String(down),
-      description: 'Comparison metrics below the previous period.',
+      description: 'Metrics that are lower than the previous period.',
     },
     {
       id: 'flat',
-      label: 'Unchanged',
+      label: 'No change',
       value: String(flat),
-      description: 'Comparison metrics unchanged period over period.',
+      description: 'Metrics that stayed the same as the previous period.',
     },
   ]
 })
@@ -49,10 +49,10 @@ const directionSummary = computed(() => {
 <template>
   <Card class="dashboard-card-interactive">
     <CardHeader>
-      <CardTitle>Compare to previous period</CardTitle>
+      <CardTitle>Change vs previous period</CardTitle>
       <CardDescription>
-        <template v-if="rangeLabel">Previous range: {{ rangeLabel }}</template>
-        <template v-else>Comparison becomes available when both range dates are selected.</template>
+        <template v-if="rangeLabel">Compared with: {{ rangeLabel }}</template>
+        <template v-else>Comparison appears when both range dates are selected.</template>
       </CardDescription>
     </CardHeader>
     <CardContent class="space-y-5">

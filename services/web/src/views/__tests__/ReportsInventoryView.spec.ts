@@ -223,15 +223,16 @@ describe('ReportsInventoryView', () => {
     await flushPromises()
   }
 
-  it('renders inventory snapshot and movement copy', async () => {
+  it('renders inventory snapshot and movement copy without extra workspace advice panels', async () => {
     const { wrapper } = await mountView()
 
     expect(wrapper.text()).toContain('Inventory Report')
     expect(wrapper.text()).toContain('Overview')
     expect(wrapper.text()).toContain('Exceptions')
     expect(wrapper.text()).toContain('Breakdowns')
-    expect(wrapper.text()).toContain('Compare to previous period')
-    expect(wrapper.text()).toContain('Open low stock items')
+    expect(wrapper.text()).toContain('Change vs previous period')
+    expect(wrapper.text()).not.toContain('Recommended actions')
+    expect(wrapper.text()).not.toContain('Open low stock items')
   })
 
   it('renders inventory attention and breakdown sections', async () => {
@@ -239,13 +240,13 @@ describe('ReportsInventoryView', () => {
 
     await clickTab(wrapper, 'Exceptions')
 
-    expect(wrapper.text()).toContain('Inventory attention')
+    expect(wrapper.text()).toContain('Needs attention')
     expect(wrapper.text()).toContain('Archive Hoodie')
 
     await clickTab(wrapper, 'Breakdowns')
 
-    expect(wrapper.text()).toContain('Movement type')
-    expect(wrapper.text()).toContain('Reference source')
+    expect(wrapper.text()).toContain('Stock movement types')
+    expect(wrapper.text()).toContain('Movement source')
   })
 
   it('hides generated metadata on initial load errors without cached data', async () => {
@@ -265,8 +266,9 @@ describe('ReportsInventoryView', () => {
     const { wrapper } = await mountView()
 
     expect(wrapper.text()).toContain('Inventory Report')
-    expect(wrapper.text()).toContain('Open low stock items')
     expect(wrapper.text()).toContain('Generated')
     expect(wrapper.text()).not.toContain('Inventory report unavailable')
+    expect(wrapper.text()).not.toContain('Recommended actions')
+    expect(wrapper.text()).not.toContain('Open low stock items')
   })
 })

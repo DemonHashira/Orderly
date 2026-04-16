@@ -17,12 +17,6 @@ const movementOutQty = computed(() => inventorySummary.value?.movement_out_qty ?
 const netMovementQty = computed(() => movementInQty.value - movementOutQty.value)
 const priorityStocks = computed(() => page.lowAvailabilityStocks.value.slice(0, 3))
 const lowestAvailabilityStock = computed(() => priorityStocks.value[0] ?? null)
-const outflowRatio = computed(() => {
-  if (movementInQty.value <= 0) {
-    return 0
-  }
-  return (movementOutQty.value / movementInQty.value) * 100
-})
 
 const kpiCards = computed(() => {
   const cards = ['inventory-low-stock', 'inventory-available', 'returns-total']
@@ -139,35 +133,50 @@ const queueOrder = computed(() => {
 
       <Card class="dashboard-card-interactive">
         <CardHeader>
-          <CardTitle>Movement Visibility</CardTitle>
-          <CardDescription
-            >Track flow direction and open movement controls quickly.</CardDescription
-          >
+          <CardTitle>Inventory Operations</CardTitle>
+          <CardDescription>
+            Monitor the queues that affect stock accuracy and restock throughput.
+          </CardDescription>
         </CardHeader>
         <CardContent class="space-y-4">
           <div class="grid grid-cols-3 gap-3 text-sm">
             <div class="rounded-md border p-3">
-              <p class="text-muted-foreground text-xs">In</p>
-              <p class="text-base font-semibold">{{ formatNumber(movementInQty) }}</p>
+              <p class="text-muted-foreground text-xs">Returns Awaiting Restock</p>
+              <p class="text-base font-semibold">
+                {{ formatNumber(page.returnsToRestock.value.length) }}
+              </p>
             </div>
             <div class="rounded-md border p-3">
-              <p class="text-muted-foreground text-xs">Out</p>
-              <p class="text-base font-semibold">{{ formatNumber(movementOutQty) }}</p>
+              <p class="text-muted-foreground text-xs">Low Availability SKUs</p>
+              <p class="text-base font-semibold">
+                {{ formatNumber(page.lowAvailabilityStocks.value.length) }}
+              </p>
             </div>
             <div class="rounded-md border p-3">
-              <p class="text-muted-foreground text-xs">Net</p>
+              <p class="text-muted-foreground text-xs">Net Movement</p>
               <p class="text-base font-semibold">{{ formatNumber(netMovementQty) }}</p>
             </div>
           </div>
           <div class="rounded-md border p-3 text-sm">
-            <p class="text-muted-foreground text-xs">Outflow Ratio</p>
-            <p class="font-medium">{{ outflowRatio.toFixed(1) }}% of inbound flow</p>
+            <p class="text-muted-foreground text-xs">Movement Summary</p>
+            <p class="font-medium">
+              In {{ formatNumber(movementInQty) }} / Out {{ formatNumber(movementOutQty) }} in
+              selected range
+            </p>
+            <p class="text-muted-foreground mt-1 text-xs">
+              Use restock and stock workspaces to keep inventory aligned with operational handoffs.
+            </p>
           </div>
           <div class="flex flex-wrap gap-3">
-            <Button as-child size="sm">
-              <RouterLink to="/inventory/movements">Open Inventory Movements</RouterLink>
+            <Button v-if="page.queuePermissions.canViewRestocks.value" as-child size="sm">
+              <RouterLink to="/returns?has_restockable=true">Open Restock Queue</RouterLink>
             </Button>
-            <Button as-child variant="outline" size="sm">
+            <Button
+              v-if="page.queuePermissions.canViewInventory.value"
+              as-child
+              variant="outline"
+              size="sm"
+            >
               <RouterLink to="/inventory/stocks">Open Inventory Stocks</RouterLink>
             </Button>
           </div>

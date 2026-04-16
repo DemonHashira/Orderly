@@ -215,17 +215,20 @@ describe('Role Dashboard Views', () => {
     expect(logistics.text()).toContain('Unpaid Outcomes')
   })
 
-  it('shows data-driven movement metrics and top inventory priorities', () => {
+  it('shows inventory operations signals and top inventory priorities', () => {
     mockUseDashboardPageData.mockReturnValue(createMockPageData())
 
     const wrapper = mount(InventoryDashboardView, {
       global: { stubs: componentStubs },
     })
 
-    expect(wrapper.text()).toContain('Movement Visibility')
-    expect(wrapper.text()).toContain('9,022')
-    expect(wrapper.text()).toContain('419')
+    expect(wrapper.text()).toContain('Inventory Operations')
+    expect(wrapper.text()).toContain('Returns Awaiting Restock')
+    expect(wrapper.text()).toContain('Low Availability SKUs')
+    expect(wrapper.text()).toContain('Net Movement')
     expect(wrapper.text()).toContain('8,603')
+    expect(wrapper.text()).toContain('In 9,022 / Out 419 in selected range')
+    expect(wrapper.text()).toContain('Open Restock Queue')
     expect(wrapper.text()).toContain('Sticker Pack')
     expect(wrapper.text()).toContain('Review Inventory Stocks')
   })

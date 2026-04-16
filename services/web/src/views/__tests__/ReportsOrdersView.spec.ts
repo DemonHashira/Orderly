@@ -328,19 +328,6 @@ describe('ReportsOrdersView', () => {
     await flushPromises()
   }
 
-  it('renders the report summary and workspace shortcut', async () => {
-    const { wrapper } = await mountView()
-
-    expect(wrapper.text()).toContain('Orders Report')
-    expect(wrapper.text()).toContain('24')
-    expect(wrapper.text()).toContain('Overview')
-    expect(wrapper.text()).toContain('Exceptions')
-    expect(wrapper.text()).toContain('Breakdowns')
-    expect(wrapper.text()).toContain('Compare to previous period')
-    expect(wrapper.text()).toContain('Open backlog orders')
-    expect(wrapper.text()).toContain('Generated')
-  })
-
   it('shows a zero-activity message for empty but valid summaries', async () => {
     ordersState.data = {
       data: {
@@ -363,8 +350,8 @@ describe('ReportsOrdersView', () => {
 
     await clickTab(wrapper, 'Breakdowns')
 
-    expect(wrapper.text()).toContain('Channel mix')
-    expect(wrapper.text()).toContain('Top products')
+    expect(wrapper.text()).toContain('Sales channels')
+    expect(wrapper.text()).toContain('Best-selling products')
     expect(wrapper.text()).toContain('Winter Jacket')
 
     await clickTab(wrapper, 'Exceptions')

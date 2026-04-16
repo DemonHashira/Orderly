@@ -51,7 +51,13 @@ const gridClass = computed(() => {
         <Card v-for="card in props.cards" :key="card.id" class="dashboard-card-interactive">
           <CardHeader>
             <CardDescription>{{ card.title }}</CardDescription>
-            <CardTitle class="text-3xl">{{ card.value }}</CardTitle>
+            <CardTitle
+              :data-test="`dashboard-kpi-value-${card.id}`"
+              :title="card.value"
+              class="max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-2xl tabular-nums sm:text-3xl"
+            >
+              {{ card.value }}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <p class="text-muted-foreground text-xs">{{ card.description }}</p>

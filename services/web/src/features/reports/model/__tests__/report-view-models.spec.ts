@@ -67,7 +67,7 @@ describe('report view models', () => {
     expect(model.cards).toHaveLength(3)
     expect(model.chartPoints[0]).toEqual({ label: 'delivered', value: 7 })
     expect(model.comparisonMetrics[0]?.label).toBe('Total orders')
-    expect(model.breakdownSections[0]?.title).toBe('Channel mix')
+    expect(model.breakdownSections[0]?.title).toBe('Sales channels')
     expect(model.exceptionSections[0]?.title).toBe('Backlog orders')
   })
 
@@ -128,7 +128,7 @@ describe('report view models', () => {
       { label: 'Out', value: 75 },
     ])
     expect(model.overviewCards[1]?.label).toBe('Net movement')
-    expect(model.breakdownSections[1]?.title).toBe('Reference source')
+    expect(model.breakdownSections[1]?.title).toBe('Movement source')
   })
 
   it('builds returns report rates safely for empty summaries', () => {
@@ -158,10 +158,10 @@ describe('report view models', () => {
     expect(model.cards).toHaveLength(4)
     expect(model.overviewCards[0]?.value).toBe('0.0%')
     expect(model.overviewCards[2]).toEqual({
-      id: 'status-rows',
-      label: 'Order status buckets',
-      value: '0',
-      description: 'Distinct order statuses among orders with returns in this range.',
+      id: 'avg-items-per-return',
+      label: 'Avg Items per Return',
+      value: '0.0',
+      description: 'Average returned item quantity per return order in the selected range.',
     })
     expect(model.zeroStateMessage).toBe('No returns recorded for the selected range.')
     expect(model.chartPoints).toEqual([])

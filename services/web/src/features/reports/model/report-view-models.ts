@@ -140,7 +140,7 @@ export const buildOrdersReportViewModel = (
     breakdownSections: [
       {
         id: 'orders-by-channel',
-        title: 'Channel mix',
+        title: 'Sales channels',
         description: 'Where order volume is coming from in the selected range.',
         columns: [
           { key: 'channel', label: 'Channel' },
@@ -154,7 +154,7 @@ export const buildOrdersReportViewModel = (
       },
       {
         id: 'orders-top-products',
-        title: 'Top products',
+        title: 'Best-selling products',
         description: 'Highest-volume ordered products in the selected range.',
         columns: [
           { key: 'product', label: 'Product' },
@@ -296,7 +296,7 @@ export const buildInventoryReportViewModel = (
     breakdownSections: [
       {
         id: 'inventory-movement-type',
-        title: 'Movement type',
+        title: 'Stock movement types',
         description: 'Most significant stock movement categories in the selected range.',
         columns: [
           { key: 'type', label: 'Type' },
@@ -310,7 +310,7 @@ export const buildInventoryReportViewModel = (
       },
       {
         id: 'inventory-reference-source',
-        title: 'Reference source',
+        title: 'Movement source',
         description: 'Which upstream workflows are driving inventory movements.',
         columns: [
           { key: 'source', label: 'Source' },
@@ -326,7 +326,7 @@ export const buildInventoryReportViewModel = (
     exceptionSections: [
       {
         id: 'inventory-attention',
-        title: 'Inventory attention',
+        title: 'Needs attention',
         description: 'Items that are low, depleted, or over-reserved right now.',
         columns: [
           { key: 'product', label: 'Product' },
@@ -370,6 +370,7 @@ export const buildReturnsReportViewModel = (
   const totalItems = summary.total_return_items_qty
   const restockRate = totalItems > 0 ? (summary.restockable_items_qty / totalItems) * 100 : 0
   const writeOffRate = totalItems > 0 ? (summary.non_restockable_items_qty / totalItems) * 100 : 0
+  const avgItemsPerReturn = summary.total_returns > 0 ? totalItems / summary.total_returns : 0
   const byReason = summary.breakdowns?.by_reason ?? []
   const byChannel = summary.breakdowns?.by_channel ?? []
   const topProducts = summary.breakdowns?.top_products ?? []
@@ -441,10 +442,10 @@ export const buildReturnsReportViewModel = (
         description: 'Returned quantity that has to be written off.',
       },
       {
-        id: 'status-rows',
-        label: 'Order status buckets',
-        value: formatNumber(Object.keys(summary.by_order_status).length),
-        description: 'Distinct order statuses among orders with returns in this range.',
+        id: 'avg-items-per-return',
+        label: 'Avg Items per Return',
+        value: avgItemsPerReturn.toFixed(1),
+        description: 'Average returned item quantity per return order in the selected range.',
       },
     ],
     breakdownSections: [
@@ -464,7 +465,7 @@ export const buildReturnsReportViewModel = (
       },
       {
         id: 'returns-channel',
-        title: 'Channel mix',
+        title: 'Sales channels',
         description: 'Which sales channels are contributing the most return volume.',
         columns: [
           { key: 'channel', label: 'Channel' },
@@ -478,7 +479,7 @@ export const buildReturnsReportViewModel = (
       },
       {
         id: 'returns-top-products',
-        title: 'Returned products',
+        title: 'Most returned products',
         description: 'Products driving the highest returned quantity in the selected range.',
         columns: [
           { key: 'product', label: 'Product' },
@@ -496,7 +497,7 @@ export const buildReturnsReportViewModel = (
     exceptionSections: [
       {
         id: 'returns-pending-restock',
-        title: 'Pending restock',
+        title: 'Waiting to restock',
         description: 'Restockable return orders that still need inventory movement follow-through.',
         columns: [
           { key: 'reference', label: 'Order' },
@@ -514,7 +515,7 @@ export const buildReturnsReportViewModel = (
       },
       {
         id: 'returns-write-off-products',
-        title: 'Write-off products',
+        title: 'Items to write off',
         description: 'Products accumulating the most non-restockable returned quantity.',
         columns: [
           { key: 'product', label: 'Product' },

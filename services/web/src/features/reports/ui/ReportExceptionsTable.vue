@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -47,15 +46,7 @@ const resolveCell = (
       <CardTitle>{{ section.title }}</CardTitle>
       <CardDescription>{{ section.description }}</CardDescription>
     </CardHeader>
-    <CardContent class="space-y-4">
-      <Alert>
-        <AlertTitle>Operator queue</AlertTitle>
-        <AlertDescription>
-          Keep these lists short and actionable. They should point directly at work that needs
-          attention now.
-        </AlertDescription>
-      </Alert>
-
+    <CardContent>
       <Table>
         <TableHeader>
           <TableRow>

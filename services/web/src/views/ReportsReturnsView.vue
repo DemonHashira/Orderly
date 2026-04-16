@@ -1,15 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { useAuth } from '@/features/auth/composables/useAuth'
 import type { DashboardKpiCard } from '@/features/dashboard/types'
 import DashboardKpiSection from '@/features/dashboard/ui/DashboardKpiSection.vue'
 import MiniDistributionChart from '@/features/dashboard/ui/MiniDistributionChart.vue'
 import { useReportDateRangeQuery } from '@/features/reports/composables/useReportDateRangeQuery'
 import { useReturnsReportSummaryQuery } from '@/features/reports/composables/useReturnsReportSummaryQuery'
 import { buildReturnsReportViewModel } from '@/features/reports/model/report-view-models'
-import type { ReportActionLink } from '@/features/reports/model/report-types'
-import ReportActionLinksPanel from '@/features/reports/ui/ReportActionLinksPanel.vue'
 import ReportBreakdownTable from '@/features/reports/ui/ReportBreakdownTable.vue'
 import ReportComparisonPanel from '@/features/reports/ui/ReportComparisonPanel.vue'
 import ReportExceptionsTable from '@/features/reports/ui/ReportExceptionsTable.vue'
@@ -25,7 +22,6 @@ import {
   PageRefetchOverlay,
 } from '@/shared/ui'
 
-const { permissions } = useAuth()
 const range = useReportDateRangeQuery()
 const reportQuery = useReturnsReportSummaryQuery(
   computed(() => ({
@@ -41,27 +37,6 @@ const viewModel = computed(() =>
   summary.value ? buildReturnsReportViewModel(summary.value) : null,
 )
 const cards = computed<DashboardKpiCard[]>(() => viewModel.value?.cards ?? [])
-const visibleActions = computed<ReportActionLink[]>(() => {
-  if (!viewModel.value) {
-    return []
-  }
-
-  const actions = permissions.value.includes('returns.view') ? [...viewModel.value.actionLinks] : []
-
-  if (permissions.value.includes('inventory.view')) {
-    actions.push({
-      id: 'open-inventory-workspace',
-      label: 'Open Inventory Workspace',
-      description: 'Review stock rows that will be affected by restocked returns.',
-      to: {
-        path: '/inventory/stocks',
-        query: {},
-      },
-    })
-  }
-
-  return actions
-})
 const isInitialLoading = computed(() => reportQuery.isLoading.value && summary.value == null)
 const isRefetching = computed(() => !isInitialLoading.value && reportQuery.isFetching.value)
 const errorMessage = computed(() =>
@@ -125,7 +100,7 @@ const rangeLabel = computed(() => {
           <div class="grid items-start gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
             <MiniDistributionChart
               chart-id="returns-by-outcome"
-              title="Returns by Outcome"
+              title="Returns by outcome"
               description="Returned versus unpaid outcomes during the selected range."
               :points="viewModel.chartPoints"
             />
@@ -157,8 +132,6 @@ const rangeLabel = computed(() => {
               {{ viewModel.zeroStateMessage }}
             </CardContent>
           </Card>
-
-          <ReportActionLinksPanel :actions="visibleActions" />
         </template>
 
         <template #exceptions>
