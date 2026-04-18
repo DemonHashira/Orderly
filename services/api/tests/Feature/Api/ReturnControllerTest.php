@@ -66,16 +66,15 @@ test('show includes linked order customer name', function () {
 
     Sanctum::actingAs($user);
 
-    $this->getJson('/api/returns/'.$returnOrder->id)
-        ->assertStatus(200)
-        ->assertJsonPath(
-            'data.order.customer_name',
-            trim(implode(' ', array_filter([
-                $order->customer->first_name,
-                $order->customer->middle_name,
-                $order->customer->last_name,
-            ]))),
-        );
+    [
+        $order->customer->first_name,
+        $order->customer->middle_name,
+        $order->customer->last_name,
+    ]
+        |> array_filter(...)
+        |> (fn ($x) => implode(' ', $x))
+        |> trim(...)
+        |> (fn ($x) => $this->getJson('/api/returns/'.$returnOrder->id)->assertStatus(200)->assertJsonPath('data.order.customer_name', $x));
 });
 
 test('show returns 404 for cross-organization return order', function () {

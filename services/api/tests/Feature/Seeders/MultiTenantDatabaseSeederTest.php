@@ -19,9 +19,8 @@ test('database seeder creates two populated demo organizations', function () {
     $gearHub = Organization::query()->where('slug', 'gear-hub')->first();
 
     expect($otakuStore)->not->toBeNull()
-        ->and($gearHub)->not->toBeNull();
-
-    expect(User::query()->where('organization_id', $otakuStore->id)->count())->toBeGreaterThan(0)
+        ->and($gearHub)->not->toBeNull()
+        ->and(User::query()->where('organization_id', $otakuStore->id)->count())->toBeGreaterThan(0)
         ->and(User::query()->where('organization_id', $gearHub->id)->count())->toBeGreaterThan(0)
         ->and(Customer::query()->where('organization_id', $otakuStore->id)->count())->toBeGreaterThan(0)
         ->and(Customer::query()->where('organization_id', $gearHub->id)->count())->toBeGreaterThan(0)
@@ -30,21 +29,20 @@ test('database seeder creates two populated demo organizations', function () {
         ->and(InventoryStock::query()->where('organization_id', $otakuStore->id)->count())->toBeGreaterThan(0)
         ->and(InventoryStock::query()->where('organization_id', $gearHub->id)->count())->toBeGreaterThan(0)
         ->and(Order::query()->where('organization_id', $otakuStore->id)->count())->toBeGreaterThan(0)
-        ->and(Order::query()->where('organization_id', $gearHub->id)->count())->toBeGreaterThan(0);
+        ->and(Order::query()->where('organization_id', $gearHub->id)->count())->toBeGreaterThan(0)
+        ->and(
+            Product::query()
+                ->where('organization_id', $gearHub->id)
+                ->where('sku', 'like', 'GH-%')
+                ->exists(),
+        )->toBeTrue()
+        ->and(
+            Order::query()
+                ->where('organization_id', $gearHub->id)
+                ->where('reference', 'like', 'GH-2026-%')
+                ->exists(),
+        )->toBeTrue();
 
-    expect(
-        Product::query()
-            ->where('organization_id', $gearHub->id)
-            ->where('sku', 'like', 'GH-%')
-            ->exists(),
-    )->toBeTrue();
-
-    expect(
-        Order::query()
-            ->where('organization_id', $gearHub->id)
-            ->where('reference', 'like', 'GH-2026-%')
-            ->exists(),
-    )->toBeTrue();
 });
 
 test('seeded tenant owners only see their own products orders and team members', function () {

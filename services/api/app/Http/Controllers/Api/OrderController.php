@@ -106,6 +106,7 @@ final class OrderController extends Controller
         $items = $data['items'];
         unset($data['items']);
 
+        // Keep the order, items, totals, and initial status in one write.
         $order = DB::transaction(function () use ($data, $items, $orgId, $userId) {
             $order = Order::query()->create([
                 'organization_id' => $orgId,
@@ -182,6 +183,7 @@ final class OrderController extends Controller
                 'internal_notes' => $data['internal_notes'] ?? null,
             ])->save();
 
+            // Rebuild items from the request so totals stay in sync.
             $existingItemIds = $orderModel->items()->pluck('id');
             foreach ($existingItemIds as $itemId) {
                 $this->itemService->removeItem((int) $itemId);
@@ -303,6 +305,7 @@ final class OrderController extends Controller
 
     private function generateReference(): string
     {
+        // Retry a few times to avoid a rare reference collision.
         for ($attempt = 0; $attempt < 10; $attempt++) {
             $reference = 'ORD-'.now()->format('Ymd').'-'.Str::upper(Str::random(6));
 

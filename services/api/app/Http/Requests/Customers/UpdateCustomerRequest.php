@@ -16,6 +16,7 @@ final class UpdateCustomerRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        // Normalize user input before the rules run.
         $this->merge($this->normalizedCustomerInput());
     }
 
@@ -49,6 +50,7 @@ final class UpdateCustomerRequest extends FormRequest
                 'required',
                 'email',
                 'max:255',
+                // Keep email uniqueness scoped to the current organization.
                 Rule::unique('customers', 'email')
                     ->ignore($customerId)
                     ->where(

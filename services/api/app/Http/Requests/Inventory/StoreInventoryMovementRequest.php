@@ -20,6 +20,7 @@ final class StoreInventoryMovementRequest extends FormRequest
             'quantity_delta' => ['required', 'integer', 'not_in:0'],
             'reason' => ['required', 'string', 'max:255'],
 
+            // These values are derived server-side.
             'organization_id' => ['prohibited'],
             'performed_by_user_id' => ['prohibited'],
             'qty_delta' => ['prohibited'],
@@ -30,6 +31,7 @@ final class StoreInventoryMovementRequest extends FormRequest
 
     public function withValidator(Validator $validator): void
     {
+        // Enforce the expected sign for each movement type.
         $validator->after(function (Validator $validator): void {
             if (! $this->filled('type') || ! $this->filled('quantity_delta')) {
                 return;

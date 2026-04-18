@@ -162,7 +162,6 @@ test('restock return is idempotent and does not double restock', function () {
 
     $stock->refresh();
 
-    // Expected: only restocked once
     expect($stock->qty_on_hand)->toBe(7)
         ->and(InventoryMovement::query()
             ->where('reference_type', 'Return')

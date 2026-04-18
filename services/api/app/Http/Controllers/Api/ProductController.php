@@ -92,7 +92,7 @@ final class ProductController extends Controller
             return $product;
         });
 
-        return (new ProductResource($product))
+        return new ProductResource($product)
             ->response()
             ->setStatusCode(Response::HTTP_CREATED);
     }

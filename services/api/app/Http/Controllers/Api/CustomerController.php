@@ -80,6 +80,7 @@ final class CustomerController extends Controller
                 ['organization_id' => (int) $request->user()->organization_id],
             ));
 
+            // Keep the default address in sync with the customer payload.
             $this->syncCustomerAddress($customer, $validated['address'] ?? null);
 
             return $customer->load('defaultAddress');
@@ -126,6 +127,7 @@ final class CustomerController extends Controller
 
     private function syncCustomerAddress(Customer $customer, ?array $address): void
     {
+        // The API only manages one default address per customer.
         $defaultAddress = $customer->defaultAddress()->first();
 
         if ($address === null) {

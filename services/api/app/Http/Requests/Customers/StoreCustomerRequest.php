@@ -16,6 +16,7 @@ final class StoreCustomerRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        // Normalize user input before the rules run.
         $this->merge($this->normalizedCustomerInput());
     }
 
@@ -48,6 +49,7 @@ final class StoreCustomerRequest extends FormRequest
                 'required',
                 'email',
                 'max:255',
+                // Keep email uniqueness scoped to the current organization.
                 Rule::unique('customers', 'email')->where(
                     fn (Builder $query): Builder => $query
                         ->where('organization_id', $organizationId),

@@ -24,11 +24,14 @@ beforeEach(function (): void {
 
 function displayNameForCustomer(Customer $customer): string
 {
-    return trim(implode(' ', array_filter([
+    return [
         $customer->first_name,
         $customer->middle_name,
         $customer->last_name,
-    ])));
+    ]
+            |> array_filter(...)
+            |> (fn ($x) => implode(' ', $x))
+            |> trim(...);
 }
 
 test('index returns paginated organization orders and supports filters', function () {

@@ -156,11 +156,14 @@ test('report service enriches orders summary with comparison breakdowns exceptio
         ->and($summary['exceptions']['backlog_orders'][0])->toMatchArray([
             'reference' => 'ORD-101',
             'status' => OrderStatus::ReadyToShip->value,
-            'customer_name' => trim(implode(' ', array_filter([
+            'customer_name' => [
                 $customer->first_name,
                 $customer->middle_name,
                 $customer->last_name,
-            ]))),
+            ]
+                    |> array_filter(...)
+                    |> (fn ($x) => implode(' ', $x))
+                    |> trim(...),
         ])
         ->and($summary['actions'][0])->toMatchArray([
             'id' => 'open-orders-backlog',
@@ -421,11 +424,14 @@ test('report service enriches returns summary with comparison breakdowns excepti
         ])
         ->and($summary['exceptions']['pending_restock'][0])->toMatchArray([
             'order_reference' => 'ORD-7001',
-            'customer_name' => trim(implode(' ', array_filter([
+            'customer_name' => [
                 $customer->first_name,
                 $customer->middle_name,
                 $customer->last_name,
-            ]))),
+            ]
+                    |> array_filter(...)
+                    |> (fn ($x) => implode(' ', $x))
+                    |> trim(...),
             'restockable_qty' => 3,
         ])
         ->and($summary['exceptions']['write_off_products'][0])->toMatchArray([

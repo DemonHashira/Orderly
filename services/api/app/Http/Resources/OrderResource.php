@@ -13,11 +13,14 @@ final class OrderResource extends JsonResource
             'id' => (int) $this->id,
             'reference' => (string) $this->reference,
             'customer_id' => (int) $this->customer_id,
-            'customer_name' => $this->whenLoaded('customer', fn (): string => trim(implode(' ', array_filter([
+            'customer_name' => $this->whenLoaded('customer', fn (): string => [
                 $this->customer->first_name,
                 $this->customer->middle_name,
                 $this->customer->last_name,
-            ])))),
+            ]
+                    |> array_filter(...)
+                    |> (fn ($x) => implode(' ', $x))
+                    |> trim(...)),
             'sales_channel_id' => (int) $this->sales_channel_id,
             'sales_channel_name' => $this->whenLoaded('salesChannel', fn (): string => (string) $this->salesChannel->name),
             'created_by' => (int) $this->created_by,

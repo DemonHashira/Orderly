@@ -332,20 +332,14 @@ class DemoOrderScenarios
             return 'phone';
         }
 
-        $weights = [];
-
-        foreach (
-            [
-                'instagram' => 28,
-                'marketplace' => 26,
-                'phone' => 24,
-                'email' => 22,
-            ] as $channel => $weight
-        ) {
-            if (in_array($channel, $available, true)) {
-                $weights[$channel] = $weight;
-            }
-        }
+        $weights = array_filter([
+            'instagram' => 28,
+            'marketplace' => 26,
+            'phone' => 24,
+            'email' => 22,
+        ], function ($channel) use ($available) {
+            return in_array($channel, $available, true);
+        }, ARRAY_FILTER_USE_KEY);
 
         if ($weights === []) {
             $weights[$available[0]] = 1;

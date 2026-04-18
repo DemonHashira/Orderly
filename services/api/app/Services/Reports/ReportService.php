@@ -125,15 +125,6 @@ final class ReportService
         ];
     }
 
-    /**
-     * @return array{
-     *     range: array{from: ?string, to: ?string, is_all_time: bool},
-     *     total_orders: int,
-     *     total_revenue: string,
-     *     avg_order_value: string,
-     *     by_status: array<string, int>,
-     * }
-     */
     private function getOrdersBaseSummary(int $organizationId, ?Carbon $from = null, ?Carbon $to = null): array
     {
         $ordersQuery = Order::query()->forOrg($organizationId);
@@ -158,18 +149,6 @@ final class ReportService
         ];
     }
 
-    /**
-     * @return array{
-     *     range: array{from: ?string, to: ?string, is_all_time: bool},
-     *     total_skus: int,
-     *     total_on_hand: int,
-     *     total_reserved: int,
-     *     total_available: int,
-     *     low_stock_count: int,
-     *     movement_in_qty: int,
-     *     movement_out_qty: int,
-     * }
-     */
     private function getInventoryBaseSummary(int $organizationId, ?Carbon $from = null, ?Carbon $to = null): array
     {
         $stocksQuery = InventoryStock::query()->forOrg($organizationId);
@@ -206,16 +185,6 @@ final class ReportService
         ];
     }
 
-    /**
-     * @return array{
-     *     range: array{from: ?string, to: ?string, is_all_time: bool},
-     *     total_returns: int,
-     *     total_return_items_qty: int,
-     *     restockable_items_qty: int,
-     *     non_restockable_items_qty: int,
-     *     by_order_status: array<string, int>,
-     * }
-     */
     private function getReturnsBaseSummary(int $organizationId, ?Carbon $from = null, ?Carbon $to = null): array
     {
         $returnsQuery = ReturnOrder::query()
@@ -774,10 +743,13 @@ final class ReportService
 
     private function formatCustomerName(?string $firstName, ?string $middleName, ?string $lastName): string
     {
-        return trim(implode(' ', array_filter([
+        return [
             $firstName,
             $middleName,
             $lastName,
-        ])));
+        ]
+                |> array_filter(...)
+                |> (fn ($x) => implode(' ', $x))
+                |> trim(...);
     }
 }

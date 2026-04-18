@@ -17,11 +17,14 @@ final class AdminUserResource extends JsonResource
             'first_name' => $this->first_name,
             'middle_name' => $this->middle_name,
             'last_name' => $this->last_name,
-            'name' => trim(implode(' ', array_filter([
+            'name' => [
                 $this->first_name,
                 $this->middle_name,
                 $this->last_name,
-            ]))),
+            ]
+                    |> array_filter(...)
+                    |> (fn ($x) => implode(' ', $x))
+                    |> trim(...),
             'email' => $this->email,
             'is_active' => (bool) $this->is_active,
             'role' => $roles[0] ?? null,

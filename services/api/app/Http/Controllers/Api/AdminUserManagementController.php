@@ -116,6 +116,7 @@ final class AdminUserManagementController extends Controller
         $userModel = $this->findOrganizationUser($actor->organization_id, $user);
         $isActive = (bool) $request->validated('is_active');
 
+        // Prevent self-lockout and removing the last active owner.
         if ((int) $actor->id === (int) $userModel->id && ! $isActive) {
             return response()->json([
                 'message' => 'You cannot deactivate your own account.',
@@ -158,6 +159,7 @@ final class AdminUserManagementController extends Controller
         $userModel = $this->findOrganizationUser($actor->organization_id, $user);
         $nextRole = (string) $request->validated('role');
 
+        // Keep at least one active owner in the organization.
         if ((int) $actor->id === (int) $userModel->id && $nextRole !== 'Owner' && $this->isLastActiveOwner($userModel)) {
             return response()->json([
                 'message' => 'You cannot remove Owner role from the last active Owner.',
