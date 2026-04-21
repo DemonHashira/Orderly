@@ -499,7 +499,7 @@ const onConfirmAction = async () => {
       toast.success('Order moved to confirmed successfully.')
     } else if (type === 'ready') {
       await readyMutation.mutateAsync(orderId)
-      toast.success('Order moved to ready_to_ship successfully.')
+      toast.success('Order moved to ready to ship successfully.')
     } else if (type === 'cancel') {
       await cancelMutation.mutateAsync(orderId)
       toast.success('Order cancelled successfully.')
